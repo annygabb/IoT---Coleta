@@ -1,0 +1,2122 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>SmartWaste DF — Centro de Comando & Digital Twin IoT de Brasília</title>
+  
+  <!-- Modernist Typography: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS & Lucide Icons CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            command: {
+              bg: '#090d14',
+              surface: '#0f1523',
+              surfaceElevated: '#151d2f',
+              border: '#1e293b',
+              borderLight: '#334155',
+              textPrimary: '#f8fafc',
+              textSecondary: '#94a3b8',
+              textMuted: '#64748b',
+            },
+            status: {
+              normal: '#10b981',    // <50% Verde operacional
+              attention: '#f59e0b', // 50-69% Âmbar urbano
+              high: '#f97316',      // 70-84% Laranja
+              critical: '#ef4444',  // 85-99% Vermelho crítico
+              overflow: '#dc2626',  // >=100% Transbordo
+              lake: '#0284c7',      // Lago Paranoá
+              truckAsa: '#10b981',  // TR-01
+              truckAguas: '#06b6d4',// TR-02
+              truckCeil: '#f59e0b', // TR-03
+            }
+          },
+          fontFamily: {
+            mono: ['"JetBrains Mono"', 'monospace'],
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style>
+    /* Technical Blueprint Mesh Background */
+    .blueprint-grid {
+      background-size: 24px 24px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    }
+    
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090d14;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+
+    /* Pulse effects with restraint */
+    .pulse-slow-red {
+      animation: slowPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes slowPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Range slider custom thumb */
+    input[type=range] {
+      accent-color: #10b981;
+    }
+
+    /* Accessibility Focus Rings */
+    button:focus-visible, select:focus-visible, input:focus-visible {
+      outline: 2px solid #38bdf8;
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="bg-command-bg text-command-textPrimary font-sans h-screen w-screen overflow-hidden flex flex-col select-none antialiased">
+
+  <!-- ================= TOP COMMAND BAR ================= -->
+  <header class="h-14 border-b border-command-border bg-command-surface/95 backdrop-blur px-4 flex items-center justify-between shrink-0 z-40">
+    <!-- Brand / Scenario / Status Badge -->
+    <div class="flex items-center gap-3">
+      <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center shadow-md shadow-emerald-950">
+        <i data-lucide="shield" class="w-5 h-5 text-white stroke-[2.2]"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-sm tracking-wide bg-gradient-to-r from-emerald-400 via-teal-300 to-sky-300 bg-clip-text text-transparent">SMARTWASTE DF</span>
+          <span class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-command-surfaceElevated border border-command-borderLight text-slate-300">Brasília • 2026</span>
+          
+          <!-- Mode Badge (Dual Mode: Lab / Demo) -->
+          <button id="mode-badge" onclick="toggleBackendSync()" class="cursor-pointer text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-emerald-950/70 border border-emerald-500/40 text-emerald-400 flex items-center gap-1.5 hover:bg-emerald-900/50 transition" title="Alternar entre modo Laboratório (WebSocket) e Demo PWA (Offline)">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+            <span id="mode-text">Modo Laboratório</span>
+          </button>
+        </div>
+        <div class="text-[10px] text-command-textMuted flex items-center gap-2 font-mono">
+          <span id="backend-status-text">FastAPI :8000 • Broker MQTT Ativo</span>
+          <span>•</span>
+          <span>Seed: <strong class="text-slate-300" id="header-seed-val">20260903</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Central Sim Clock & Playback Mission Controls -->
+    <div class="flex items-center gap-3 bg-command-surfaceElevated/90 px-3 py-1.5 rounded-xl border border-command-border shadow-inner">
+      <!-- Sim Clock -->
+      <div class="flex items-center gap-2 border-r border-command-border pr-3">
+        <i data-lucide="clock" class="w-4 h-4 text-emerald-400"></i>
+        <div class="text-right font-mono">
+          <div class="text-sm font-bold text-white tracking-wider" id="sim-clock-display">08:00:00</div>
+          <div class="text-[9px] text-command-textMuted" id="sim-day-display">Dia 1 • DF</div>
+        </div>
+      </div>
+
+      <!-- Play/Pause & Step -->
+      <div class="flex items-center gap-1">
+        <button id="btn-toggle-play" onclick="togglePlayPause()" class="p-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold transition flex items-center justify-center shadow-sm" title="Pausar / Retomar (Atalho: Espaço)">
+          <i id="play-pause-icon" data-lucide="pause" class="w-4 h-4"></i>
+        </button>
+        <button onclick="stepForwardOneMinute()" class="p-1.5 rounded-lg bg-command-border hover:bg-command-borderLight text-slate-300 text-xs transition flex items-center justify-center" title="Avançar 1 Minuto Simulado (+1m)">
+          <i data-lucide="step-forward" class="w-3.5 h-3.5"></i>
+        </button>
+
+        <!-- Speed Selector -->
+        <div class="flex items-center bg-command-bg rounded-lg p-0.5 border border-command-border text-xs font-mono ml-1">
+          <button onclick="setSimSpeed(1)" class="speed-btn px-1.5 py-0.5 rounded text-command-textMuted hover:text-white transition" data-speed="1">1x</button>
+          <button onclick="setSimSpeed(5)" class="speed-btn px-1.5 py-0.5 rounded text-command-textMuted hover:text-white transition" data-speed="5">5x</button>
+          <button onclick="setSimSpeed(15)" class="speed-btn px-1.5 py-0.5 rounded text-command-textMuted hover:text-white transition" data-speed="15">15x</button>
+          <button onclick="setSimSpeed(30)" class="speed-btn px-1.5 py-0.5 rounded text-command-textMuted hover:text-white transition" data-speed="30">30x</button>
+          <button onclick="setSimSpeed(60)" class="speed-btn px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold transition" data-speed="60">60x</button>
+          <button onclick="setSimSpeed(360)" class="speed-btn px-1.5 py-0.5 rounded text-command-textMuted hover:text-white transition" data-speed="360">360x</button>
+        </div>
+      </div>
+
+      <!-- Strategy Selector -->
+      <div class="flex items-center gap-1.5 border-l border-command-border pl-3">
+        <span class="text-[10px] uppercase font-mono text-command-textMuted">Algoritmo:</span>
+        <select id="strategy-selector" onchange="changeStrategy(this.value)" class="bg-command-bg border border-command-border text-xs text-emerald-400 font-medium rounded-lg px-2 py-1 focus:outline-none focus:border-emerald-500 cursor-pointer">
+          <option value="VRP_SMART">⚡ VRP Smart IoT (Dinâmico Adaptativo)</option>
+          <option value="FIXED">🔄 Rota Fixa Tradicional (Baseline SLU)</option>
+          <option value="NEAREST">📍 Heurística Mais Próximo (Greedy)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Right Controls: Weather, Sound, Help, Export -->
+    <div class="flex items-center gap-2">
+      <!-- Weather Dropdown -->
+      <div class="relative group">
+        <button id="btn-weather" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-command-surfaceElevated hover:bg-command-border text-xs text-slate-300 transition border border-command-border">
+          <i id="weather-icon" data-lucide="sun" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span id="weather-label">Seco (1.0x)</span>
+          <i data-lucide="chevron-down" class="w-3 h-3 text-slate-400"></i>
+        </button>
+        <div class="absolute right-0 mt-1 w-48 bg-command-surface border border-command-border rounded-xl shadow-2xl py-1 hidden group-hover:block z-50">
+          <button onclick="setWeather('SECO')" class="w-full px-3 py-1.5 text-left text-xs hover:bg-command-surfaceElevated flex items-center gap-2 text-slate-200">
+            <i data-lucide="sun" class="w-3.5 h-3.5 text-amber-400"></i> Céu Limpo (Normal)
+          </button>
+          <button onclick="setWeather('CHUVA_LEVE')" class="w-full px-3 py-1.5 text-left text-xs hover:bg-command-surfaceElevated flex items-center gap-2 text-slate-200">
+            <i data-lucide="cloud-rain" class="w-3.5 h-3.5 text-blue-400"></i> Chuva Leve (-5% vel.)
+          </button>
+          <button onclick="setWeather('CHUVA_FORTE')" class="w-full px-3 py-1.5 text-left text-xs hover:bg-command-surfaceElevated flex items-center gap-2 text-slate-200">
+            <i data-lucide="cloud-lightning" class="w-3.5 h-3.5 text-amber-500"></i> Chuva Forte (-30% vel.)
+          </button>
+          <button onclick="setWeather('TEMPESTADE')" class="w-full px-3 py-1.5 text-left text-xs hover:bg-command-surfaceElevated flex items-center gap-2 text-slate-200">
+            <i data-lucide="zap" class="w-3.5 h-3.5 text-rose-500"></i> Tempestade (-50% vel.)
+          </button>
+        </div>
+      </div>
+
+      <!-- Sound Toggle -->
+      <button onclick="toggleAudio()" id="btn-audio" title="Efeitos Sonoros Sintetizados" class="p-2 rounded-lg bg-command-surfaceElevated hover:bg-command-border text-slate-300 transition border border-command-border">
+        <i id="audio-icon" data-lucide="volume-2" class="w-4 h-4 text-emerald-400"></i>
+      </button>
+
+      <!-- Onboarding Help Modal Trigger -->
+      <button onclick="openOnboardingModal()" title="Guia do Sistema & Atalhos" class="p-2 rounded-lg bg-command-surfaceElevated hover:bg-command-border text-slate-300 transition border border-command-border">
+        <i data-lucide="help-circle" class="w-4 h-4 text-sky-400"></i>
+      </button>
+
+      <!-- Reset Simulation -->
+      <button onclick="confirmReset()" title="Reiniciar Simulação (Atalho: R)" class="p-2 rounded-lg bg-command-surfaceElevated hover:bg-rose-950/60 hover:text-rose-400 text-slate-300 transition border border-command-border">
+        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+      </button>
+
+      <!-- Export Data Button -->
+      <button onclick="exportSimulationData()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs transition shadow-sm">
+        <i data-lucide="download" class="w-3.5 h-3.5"></i> Exportar
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= WORKSPACE (LEFT PANEL + MAP + RIGHT INSPECTOR) ================= -->
+  <div class="flex-1 flex overflow-hidden relative">
+
+    <!-- ================= LEFT COLLAPSIBLE DRAWER (LAYERS & REGIONS) ================= -->
+    <aside id="left-drawer" class="w-64 border-r border-command-border bg-command-surface flex flex-col shrink-0 z-30 transition-all duration-200">
+      <div class="p-3 border-b border-command-border flex items-center justify-between">
+        <span class="text-xs font-bold uppercase tracking-wider text-command-textSecondary flex items-center gap-1.5">
+          <i data-lucide="layers" class="w-3.5 h-3.5 text-emerald-400"></i> Camadas & Regiões
+        </span>
+        <button onclick="toggleLeftDrawer()" class="text-command-textMuted hover:text-white p-1 rounded">
+          <i data-lucide="chevrons-left" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-3 space-y-4 text-xs">
+        <!-- Map Layers Toggles -->
+        <div class="space-y-2">
+          <h4 class="text-[10px] font-bold uppercase font-mono text-command-textMuted">Camadas Visuais</h4>
+          <label class="flex items-center justify-between p-1.5 rounded hover:bg-command-surfaceElevated cursor-pointer">
+            <span class="text-slate-300 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> 32 Lixeiras Inteligentes
+            </span>
+            <input type="checkbox" id="layer-bins" checked onchange="renderCanvas()" class="accent-emerald-500" />
+          </label>
+          <label class="flex items-center justify-between p-1.5 rounded hover:bg-command-surfaceElevated cursor-pointer">
+            <span class="text-slate-300 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded bg-sky-400"></span> Frota SLU (Caminhões)
+            </span>
+            <input type="checkbox" id="layer-trucks" checked onchange="renderCanvas()" class="accent-emerald-500" />
+          </label>
+          <label class="flex items-center justify-between p-1.5 rounded hover:bg-command-surfaceElevated cursor-pointer">
+            <span class="text-slate-300 flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full border border-sky-400"></span> Vetores de Rota
+            </span>
+            <input type="checkbox" id="layer-routes" checked onchange="toggleTruckTrails()" class="accent-emerald-500" />
+          </label>
+          <label class="flex items-center justify-between p-1.5 rounded hover:bg-command-surfaceElevated cursor-pointer">
+            <span class="text-slate-300 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-orange-500/80"></span> Heatmap de Resíduos
+            </span>
+            <input type="checkbox" id="layer-heatmap" onchange="toggleHeatmap()" class="accent-emerald-500" />
+          </label>
+        </div>
+
+        <!-- Administrative Regions Focus List -->
+        <div class="space-y-1.5 pt-2 border-t border-command-border">
+          <h4 class="text-[10px] font-bold uppercase font-mono text-command-textMuted">Regiões do DF (Foco)</h4>
+          <div class="space-y-1">
+            <button onclick="focusRegion('PLANO')" class="w-full text-left p-1.5 rounded hover:bg-command-surfaceElevated flex items-center justify-between text-slate-300 hover:text-white transition">
+              <span>Plano Piloto</span>
+              <span class="font-mono text-[10px] text-command-textMuted">13 Bins</span>
+            </button>
+            <button onclick="focusRegion('TAGUATINGA')" class="w-full text-left p-1.5 rounded hover:bg-command-surfaceElevated flex items-center justify-between text-slate-300 hover:text-white transition">
+              <span>Taguatinga</span>
+              <span class="font-mono text-[10px] text-command-textMuted">5 Bins</span>
+            </button>
+            <button onclick="focusRegion('CEILANDIA')" class="w-full text-left p-1.5 rounded hover:bg-command-surfaceElevated flex items-center justify-between text-slate-300 hover:text-white transition">
+              <span>Ceilândia</span>
+              <span class="font-mono text-[10px] text-command-textMuted">4 Bins</span>
+            </button>
+            <button onclick="focusRegion('AGUAS')" class="w-full text-left p-1.5 rounded hover:bg-command-surfaceElevated flex items-center justify-between text-slate-300 hover:text-white transition">
+              <span>Águas Claras</span>
+              <span class="font-mono text-[10px] text-command-textMuted">2 Bins</span>
+            </button>
+            <button onclick="focusRegion('SAMAMBAIA')" class="w-full text-left p-1.5 rounded hover:bg-command-surfaceElevated flex items-center justify-between text-slate-300 hover:text-white transition">
+              <span>Samambaia (Aterro)</span>
+              <span class="font-mono text-[10px] text-command-textMuted">2 Bins + Aterro</span>
+            </button>
+            <button onclick="focusRegion('GUARA')" class="w-full text-left p-1.5 rounded hover:bg-command-surfaceElevated flex items-center justify-between text-slate-300 hover:text-white transition">
+              <span>Guará I & II</span>
+              <span class="font-mono text-[10px] text-command-textMuted">2 Bins</span>
+            </button>
+            <button onclick="focusRegion('LAGO_SUL')" class="w-full text-left p-1.5 rounded hover:bg-command-surfaceElevated flex items-center justify-between text-slate-300 hover:text-white transition">
+              <span>Lago Sul / JK</span>
+              <span class="font-mono text-[10px] text-command-textMuted">3 Bins</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Emergency Injections -->
+        <div class="space-y-2 pt-2 border-t border-command-border">
+          <h4 class="text-[10px] font-bold uppercase font-mono text-command-textMuted">Injeção de Eventos</h4>
+          <button onclick="injectRandomOverflow()" class="w-full py-1.5 px-2 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/50 rounded-lg text-rose-300 flex items-center justify-center gap-1.5 transition">
+            <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-rose-400"></i> +Lixeira Crítica (>85%)
+          </button>
+          <button onclick="toggleRoadBlock()" id="btn-roadblock" class="w-full py-1.5 px-2 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-800/50 rounded-lg text-amber-300 flex items-center justify-center gap-1.5 transition">
+            <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-amber-400"></i> Interditar EPTG
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Mini Toggle Button when Left Drawer is collapsed -->
+    <button id="btn-expand-left" onclick="toggleLeftDrawer()" class="absolute top-4 left-4 p-2 rounded-xl bg-command-surface/90 hover:bg-command-surfaceElevated border border-command-border text-slate-300 shadow-xl hidden z-20 transition" title="Expandir Painel Lateral (Atalho: L)">
+      <i data-lucide="layers" class="w-4 h-4 text-emerald-400"></i>
+    </button>
+
+    <!-- ================= CENTER: 2D BRASÍLIA MAP CANVAS ================= -->
+    <section class="flex-1 relative flex flex-col bg-command-bg overflow-hidden cursor-grab active:cursor-grabbing" id="canvas-container">
+      <canvas id="simCanvas" class="w-full h-full block"></canvas>
+
+      <!-- Weather Thunder Flash Overlay -->
+      <div id="storm-flash" class="absolute inset-0 bg-white/20 pointer-events-none opacity-0 transition-opacity duration-100"></div>
+
+      <!-- Top Map Status Badge -->
+      <div class="absolute top-4 left-16 flex items-center gap-2 pointer-events-none">
+        <div class="bg-command-surface/90 backdrop-blur border border-command-border rounded-xl px-3 py-1.5 shadow-lg flex items-center gap-2.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span class="text-xs font-bold text-slate-200">Rede Urbana DF</span>
+          <span class="text-[10px] text-command-textMuted font-mono" id="map-entity-summary">32 Lixeiras • 3 Caminhões • 1 Aterro</span>
+        </div>
+        <div id="follow-truck-indicator" class="hidden bg-sky-950/80 border border-sky-500/50 text-sky-300 text-[10px] font-mono px-2 py-1 rounded-lg flex items-center gap-1.5">
+          <i data-lucide="crosshair" class="w-3 h-3 text-sky-400 animate-spin"></i>
+          <span>Seguindo <strong id="follow-truck-name">TR-01</strong></span>
+          <button onclick="cancelFollowTruck()" class="ml-1 text-slate-400 hover:text-white pointer-events-auto">✕</button>
+        </div>
+      </div>
+
+      <!-- Map Zoom & Center Floating Toolset -->
+      <div class="absolute bottom-4 right-4 flex flex-col gap-1.5 pointer-events-auto z-20">
+        <button onclick="zoomIn()" class="p-2 rounded-xl bg-command-surface/90 hover:bg-command-surfaceElevated border border-command-border text-slate-300 shadow-xl transition" title="Aproximar Zoom (+)">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+        </button>
+        <button onclick="zoomOut()" class="p-2 rounded-xl bg-command-surface/90 hover:bg-command-surfaceElevated border border-command-border text-slate-300 shadow-xl transition" title="Afastar Zoom (-)">
+          <i data-lucide="minus" class="w-4 h-4"></i>
+        </button>
+        <button onclick="resetCamera()" class="p-2 rounded-xl bg-command-surface/90 hover:bg-command-surfaceElevated border border-command-border text-slate-300 shadow-xl transition" title="Centralizar Brasília">
+          <i data-lucide="crosshair" class="w-4 h-4 text-emerald-400"></i>
+        </button>
+      </div>
+
+      <!-- Semantic Color Legend -->
+      <div class="absolute bottom-4 left-4 bg-command-surface/90 backdrop-blur border border-command-border rounded-xl p-2 shadow-xl pointer-events-auto text-[10px] font-mono hidden sm:flex items-center gap-3 z-20">
+        <div class="flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-status-normal"></span>
+          <span class="text-slate-300">&lt;50% Normal</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-status-attention"></span>
+          <span class="text-slate-300">50-69% Atenção</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-status-high"></span>
+          <span class="text-slate-300">70-84% Alta</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-status-critical"></span>
+          <span class="text-slate-300">85-99% Crítica</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-status-overflow pulse-slow-red"></span>
+          <span class="text-rose-400 font-bold">&ge;100% Transbordo</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= RIGHT CONTEXTUAL INSPECTOR & ANALYTICS PANEL ================= -->
+    <aside class="w-96 border-l border-command-border bg-command-surface flex flex-col shrink-0 z-30 overflow-hidden">
+      
+      <!-- Panel Header Tabs -->
+      <div class="flex border-b border-command-border bg-command-bg p-1 gap-1 shrink-0">
+        <button onclick="switchRightTab('overview')" id="tab-btn-overview" class="right-tab-btn flex-1 py-1.5 rounded-lg text-xs font-semibold text-emerald-400 bg-command-surfaceElevated flex items-center justify-center gap-1.5 shadow-sm transition">
+          <i data-lucide="activity" class="w-3.5 h-3.5"></i> Operação
+        </button>
+        <button onclick="switchRightTab('comparison')" id="tab-btn-comparison" class="right-tab-btn flex-1 py-1.5 rounded-lg text-xs font-semibold text-command-textMuted hover:text-slate-200 flex items-center justify-center gap-1.5 transition">
+          <i data-lucide="scale" class="w-3.5 h-3.5"></i> VRP vs Baseline
+        </button>
+        <button onclick="switchRightTab('fleet')" id="tab-btn-fleet" class="right-tab-btn flex-1 py-1.5 rounded-lg text-xs font-semibold text-command-textMuted hover:text-slate-200 flex items-center justify-center gap-1.5 transition">
+          <i data-lucide="truck" class="w-3.5 h-3.5"></i> Frota & Bins
+        </button>
+      </div>
+
+      <!-- Tab Content Area -->
+      <div class="flex-1 overflow-y-auto p-3.5 space-y-3.5">
+
+        <!-- ================= SECTION A: CONTEXTUAL SELECTION CARD ================= -->
+        <div id="inspector-card" class="bg-command-surfaceElevated border border-command-border rounded-xl p-3 shadow-md">
+          <div class="flex items-center justify-between border-b border-command-border pb-2 mb-2.5">
+            <div class="flex items-center gap-2">
+              <div id="inspect-icon-box" class="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400">
+                <i data-lucide="crosshair" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <h4 id="inspect-title" class="text-xs font-bold text-white">Central de Operações</h4>
+                <p id="inspect-subtitle" class="text-[10px] text-command-textMuted font-mono">Visão Global do Distrito Federal</p>
+              </div>
+            </div>
+            <button id="btn-close-inspect" onclick="clearSelection()" class="text-command-textMuted hover:text-white p-1 rounded hidden" title="Voltar à visão geral">
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <div id="inspect-body" class="space-y-2 text-xs">
+            <!-- Dynamically injected: Overview or Specific Bin/Truck/Decision Details -->
+          </div>
+        </div>
+
+        <!-- ================= TAB CONTENT: OPERAÇÃO / METRICS ================= -->
+        <div id="tab-content-overview" class="space-y-3">
+          <!-- Primary KPI Grid -->
+          <div class="grid grid-cols-2 gap-2">
+            <div class="bg-command-bg p-2.5 rounded-xl border border-command-border">
+              <span class="text-[10px] text-command-textMuted uppercase font-mono block">Custo Estimado</span>
+              <span class="text-base font-bold font-mono text-emerald-400" id="kpi-cost-val">R$ 142,80</span>
+              <span class="text-[9px] text-command-textSecondary block mt-0.5" id="kpi-cost-economy">-38% vs Fixo</span>
+            </div>
+            <div class="bg-command-bg p-2.5 rounded-xl border border-command-border">
+              <span class="text-[10px] text-command-textMuted uppercase font-mono block">Distância Total</span>
+              <span class="text-base font-bold font-mono text-sky-400" id="kpi-distance-val">42.5 km</span>
+              <span class="text-[9px] text-emerald-400 block mt-0.5" id="kpi-distance-saved">-31.2 km poupados</span>
+            </div>
+            <div class="bg-command-bg p-2.5 rounded-xl border border-command-border">
+              <span class="text-[10px] text-command-textMuted uppercase font-mono block">Diesel / CO₂</span>
+              <span class="text-base font-bold font-mono text-emerald-400" id="kpi-co2-val">-83.6 kg</span>
+              <span class="text-[9px] text-slate-400 block mt-0.5" id="kpi-diesel-val">31.2 L poupados</span>
+            </div>
+            <div class="bg-command-bg p-2.5 rounded-xl border border-command-border">
+              <span class="text-[10px] text-command-textMuted uppercase font-mono block">Transbordos</span>
+              <span class="text-base font-bold font-mono text-emerald-400" id="kpi-overflow-prevented">14 evitados</span>
+              <span class="text-[9px] text-rose-400 block mt-0.5" id="kpi-overflow-active">0 ativos agora</span>
+            </div>
+          </div>
+
+          <!-- Real-Time Generation Chart -->
+          <div class="bg-command-bg border border-command-border rounded-xl p-3">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[11px] font-bold text-white flex items-center gap-1.5">
+                <i data-lucide="trending-up" class="w-3.5 h-3.5 text-emerald-400"></i> Resíduos Coletados (kg)
+              </span>
+              <span class="text-[10px] font-mono text-command-textMuted" id="chart-total-kg">Total: 4.850 kg</span>
+            </div>
+            <div class="h-28 w-full">
+              <canvas id="wasteChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Regional Distribution Bar Chart -->
+          <div class="bg-command-bg border border-command-border rounded-xl p-3">
+            <span class="text-[11px] font-bold text-white flex items-center gap-1.5 mb-2">
+              <i data-lucide="pie-chart" class="w-3.5 h-3.5 text-sky-400"></i> Carga por Região Administrativa
+            </span>
+            <div class="h-28 w-full">
+              <canvas id="raChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= TAB CONTENT: COMPARISON (VRP VS BASELINE) ================= -->
+        <div id="tab-content-comparison" class="space-y-3 hidden">
+          <div class="bg-command-bg p-3 rounded-xl border border-command-border space-y-2">
+            <h4 class="text-xs font-bold text-white flex items-center gap-1.5">
+              <i data-lucide="scale" class="w-4 h-4 text-emerald-400"></i> Comparativo de Estratégias
+            </h4>
+            <p class="text-[11px] text-command-textSecondary leading-relaxed">
+              Comparação sob a mesma <strong>Seed determinística</strong> e mesmos eventos climáticos:
+            </p>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-[11px] text-left">
+                <thead class="text-[9px] uppercase font-mono text-command-textMuted border-b border-command-border">
+                  <tr>
+                    <th class="py-1">Métrica</th>
+                    <th class="py-1 text-emerald-400">VRP Smart</th>
+                    <th class="py-1 text-slate-400">Rota Fixa</th>
+                    <th class="py-1 text-sky-400">Ganho</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-command-border/50 font-mono text-[10px]">
+                  <tr>
+                    <td class="py-1.5 text-slate-300">Distância</td>
+                    <td class="text-emerald-400 font-bold" id="comp-dist-smart">42.5 km</td>
+                    <td class="text-slate-400">86.1 km</td>
+                    <td class="text-sky-400 font-bold">-50.6%</td>
+                  </tr>
+                  <tr>
+                    <td class="py-1.5 text-slate-300">Custo Total</td>
+                    <td class="text-emerald-400 font-bold" id="comp-cost-smart">R$ 142,80</td>
+                    <td class="text-slate-400">R$ 231,50</td>
+                    <td class="text-sky-400 font-bold">-38.3%</td>
+                  </tr>
+                  <tr>
+                    <td class="py-1.5 text-slate-300">Diesel (L)</td>
+                    <td class="text-emerald-400 font-bold" id="comp-fuel-smart">16.2 L</td>
+                    <td class="text-slate-400">32.8 L</td>
+                    <td class="text-sky-400 font-bold">-50.6%</td>
+                  </tr>
+                  <tr>
+                    <td class="py-1.5 text-slate-300">CO₂ (kg)</td>
+                    <td class="text-emerald-400 font-bold" id="comp-co2-smart">43.4 kg</td>
+                    <td class="text-slate-400">87.9 kg</td>
+                    <td class="text-sky-400 font-bold">-44.5 kg</td>
+                  </tr>
+                  <tr>
+                    <td class="py-1.5 text-slate-300">Transbordos</td>
+                    <td class="text-emerald-400 font-bold">0</td>
+                    <td class="text-rose-400 font-bold">14</td>
+                    <td class="text-sky-400 font-bold">-100%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= TAB CONTENT: FROTA & BINS ================= -->
+        <div id="tab-content-fleet" class="space-y-3 hidden">
+          <!-- Trucks Summary List -->
+          <div class="space-y-1.5">
+            <h4 class="text-[10px] font-bold uppercase font-mono text-command-textMuted">Caminhões SLU (5.000 kg)</h4>
+            <div id="trucks-list-container" class="space-y-1.5">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Bins Quick List -->
+          <div class="space-y-1.5 pt-2 border-t border-command-border">
+            <div class="flex items-center justify-between">
+              <h4 class="text-[10px] font-bold uppercase font-mono text-command-textMuted">Lixeiras IoT (32 Unidades)</h4>
+              <select id="bins-filter-select" onchange="renderBinsListUI()" class="bg-command-bg border border-command-border text-[10px] text-slate-300 rounded px-1.5 py-0.5">
+                <option value="ALL">Todas</option>
+                <option value="CRITICAL">Críticas (&gt;85%)</option>
+                <option value="HIGH">Altas (70-84%)</option>
+              </select>
+            </div>
+            <div id="bins-list-container" class="space-y-1 max-h-56 overflow-y-auto pr-1">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Decision Explainer Footer Banner -->
+      <div class="p-2.5 bg-command-bg border-t border-command-border flex items-start gap-2 text-xs shrink-0 cursor-pointer hover:bg-command-surfaceElevated transition" onclick="showLatestDecisionDetails()" title="Clique para entender a última decisão detalhadamente">
+        <div class="p-1 rounded bg-sky-500/20 text-sky-400 shrink-0 mt-0.5">
+          <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+        </div>
+        <div class="flex-1 overflow-hidden">
+          <div class="flex items-center justify-between text-[10px] text-sky-300 font-bold">
+            <span>Última Decisão de Despacho</span>
+            <span class="text-command-textMuted font-mono">Entenda &rsaquo;</span>
+          </div>
+          <p id="decision-footer-text" class="text-[10px] text-slate-300 truncate mt-0.5">
+            TR-01 atribuído para BIN-02 por proximidade e risco de transbordo.
+          </p>
+        </div>
+      </div>
+
+    </aside>
+  </div>
+
+  <!-- ================= BOTTOM OPERATIONS TIMELINE (COLLAPSIBLE TRAY) ================= -->
+  <footer id="bottom-timeline-tray" class="border-t border-command-border bg-command-surface flex flex-col shrink-0 z-30 transition-all duration-200 h-28">
+    <div class="h-8 border-b border-command-border/80 px-4 flex items-center justify-between text-xs bg-command-surfaceElevated/70">
+      <div class="flex items-center gap-3">
+        <button onclick="toggleTimelineExpand()" class="text-command-textSecondary hover:text-white flex items-center gap-1 font-bold text-[11px]">
+          <i id="timeline-toggle-icon" data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+          <span>Timeline de Operações & MQTT Broker</span>
+        </button>
+        <span class="text-[10px] font-mono text-command-textMuted">|</span>
+        <div class="flex items-center gap-1 text-[10px] font-mono">
+          <button onclick="filterTimeline('ALL')" class="tl-filter-btn px-2 py-0.5 rounded bg-command-border text-white font-bold" data-filter="ALL">Todos</button>
+          <button onclick="filterTimeline('ALERT')" class="tl-filter-btn px-2 py-0.5 rounded text-command-textMuted hover:text-white" data-filter="ALERT">Alertas</button>
+          <button onclick="filterTimeline('DISPATCH')" class="tl-filter-btn px-2 py-0.5 rounded text-command-textMuted hover:text-white" data-filter="DISPATCH">Despachos</button>
+          <button onclick="filterTimeline('COLLECT')" class="tl-filter-btn px-2 py-0.5 rounded text-command-textMuted hover:text-white" data-filter="COLLECT">Coletas</button>
+          <button onclick="filterTimeline('TELEMETRY')" class="tl-filter-btn px-2 py-0.5 rounded text-command-textMuted hover:text-white" data-filter="TELEMETRY">Telemetria</button>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 text-[10px] font-mono text-command-textMuted">
+        <span id="stat-mqtt-counter">Broker: <strong>1.428</strong> msgs</span>
+        <span>•</span>
+        <span id="stat-latency">p95: <strong>12ms</strong></span>
+      </div>
+    </div>
+
+    <!-- Timeline Event Stream List -->
+    <div id="timeline-event-list" class="flex-1 overflow-y-auto p-2 font-mono text-[10px] space-y-1">
+      <!-- Live event feed inserted here -->
+    </div>
+  </footer>
+
+  <!-- ================= ONBOARDING & SHORTCUTS MODAL ================= -->
+  <div id="onboarding-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-command-surface border border-command-border rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-command-border pb-3">
+        <div class="flex items-center gap-2">
+          <div class="h-8 w-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+            <i data-lucide="compass" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">Central de Comando SmartWaste DF</h3>
+            <p class="text-[10px] text-command-textMuted font-mono">Guia Rápido de Operação e Atalhos</p>
+          </div>
+        </div>
+        <button onclick="closeOnboardingModal()" class="text-command-textMuted hover:text-white p-1 rounded">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs text-command-textSecondary leading-relaxed">
+        <div class="bg-command-surfaceElevated p-3 rounded-xl border border-command-border space-y-1">
+          <strong class="text-white block font-semibold">1. Ciclo IoT Completo em Tempo Real</strong>
+          <p class="text-[11px]">As lixeiras enchem conforme horários de pico. Sensores ultrassônicos transmitem telemetria. Quando uma lixeira atinge &gt;85% (Crítica), o backend dispara um despacho via VRP inteligente.</p>
+        </div>
+
+        <div class="bg-command-surfaceElevated p-3 rounded-xl border border-command-border space-y-1">
+          <strong class="text-white block font-semibold">2. Capacidade dos Veículos & Aterro Samambaia</strong>
+          <p class="text-[11px]">Cada caminhão transporta até 5.000 kg. Ao atingir 90% da capacidade, ele desvia compulsoriamente para o Aterro Sanitário Samambaia para descarregar antes de retornar à rota.</p>
+        </div>
+
+        <div class="bg-command-surfaceElevated p-3 rounded-xl border border-command-border space-y-1">
+          <strong class="text-white block font-semibold">3. Atalhos de Teclado</strong>
+          <div class="grid grid-cols-2 gap-1.5 font-mono text-[10px] pt-1">
+            <span><kbd class="px-1.5 py-0.5 bg-command-bg border border-command-border rounded">Espaço</kbd> Pausar/Play</span>
+            <span><kbd class="px-1.5 py-0.5 bg-command-bg border border-command-border rounded">1 a 6</kbd> Velocidades</span>
+            <span><kbd class="px-1.5 py-0.5 bg-command-bg border border-command-border rounded">R</kbd> Reiniciar</span>
+            <span><kbd class="px-1.5 py-0.5 bg-command-bg border border-command-border rounded">B</kbd> Bloqueio EPTG</span>
+            <span><kbd class="px-1.5 py-0.5 bg-command-bg border border-command-border rounded">C</kbd> +Lixeira Crítica</span>
+            <span><kbd class="px-1.5 py-0.5 bg-command-bg border border-command-border rounded">L / T</kbd> Painel / Timeline</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-2">
+        <button onclick="closeOnboardingModal()" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition shadow-md">
+          Entendido, Iniciar Missão
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= JAVASCRIPT ENGINE & INTERACTIONS ================= -->
+  <script>
+    /* ================= AUDIO SYNTHESIZER ================= */
+    let audioCtx = null;
+    let isMuted = false;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }
+
+    function playBeep(freq = 440, type = 'sine', duration = 0.08, gainVal = 0.1) {
+      if (isMuted) return;
+      try {
+        initAudio();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch(e) {}
+    }
+
+    function playCollectSound() {
+      playBeep(523.25, 'triangle', 0.1, 0.12);
+      setTimeout(() => playBeep(659.25, 'triangle', 0.1, 0.12), 70);
+      setTimeout(() => playBeep(783.99, 'triangle', 0.15, 0.12), 140);
+    }
+
+    function playAlertSound() {
+      playBeep(880, 'sawtooth', 0.12, 0.15);
+      setTimeout(() => playBeep(587.33, 'sawtooth', 0.15, 0.15), 120);
+    }
+
+    function toggleAudio() {
+      isMuted = !isMuted;
+      const icon = document.getElementById('audio-icon');
+      if (isMuted) {
+        icon.setAttribute('data-lucide', 'volume-x');
+        icon.classList.replace('text-emerald-400', 'text-slate-500');
+      } else {
+        icon.setAttribute('data-lucide', 'volume-2');
+        icon.classList.replace('text-slate-500', 'text-emerald-400');
+        playBeep(600, 'sine', 0.1);
+      }
+      lucide.createIcons();
+    }
+
+    /* ================= DETERMINISTIC PRNG ================= */
+    let currentSeed = 20260903;
+    function seededRandom() {
+      let x = Math.sin(currentSeed++) * 10000;
+      return x - Math.floor(x);
+    }
+
+    /* ================= GEOGRAPHIC GRAPH OF BRASÍLIA ================= */
+    const MAP_NODES = {
+      'ATERRO_SAMAMBAIA': { id: 'ATERRO_SAMAMBAIA', name: 'Aterro Sanitário Samambaia', x: 220, y: 920, type: 'DISPOSAL', ra: 'Samambaia' },
+      'GARAGEM_SLU': { id: 'GARAGEM_SLU', name: 'Garagem Central SLU', x: 740, y: 640, type: 'DEPOT', ra: 'SIA' },
+      
+      'CEILANDIA_CENTRO': { id: 'CEILANDIA_CENTRO', name: 'Ceilândia Centro', x: 180, y: 520, ra: 'Ceilândia' },
+      'CEILANDIA_NORTE': { id: 'CEILANDIA_NORTE', name: 'Ceilândia Norte (P-Norte)', x: 160, y: 380, ra: 'Ceilândia' },
+      'CEILANDIA_SUL': { id: 'CEILANDIA_SUL', name: 'Ceilândia Sul (Guariroba)', x: 240, y: 650, ra: 'Ceilândia' },
+      
+      'TAGUA_CENTRO': { id: 'TAGUA_CENTRO', name: 'Taguatinga Centro (Relógio)', x: 380, y: 620, ra: 'Taguatinga' },
+      'TAGUA_NORTE': { id: 'TAGUA_NORTE', name: 'Taguatinga Norte (Taguaparque)', x: 360, y: 440, ra: 'Taguatinga' },
+      'TAGUA_SUL': { id: 'TAGUA_SUL', name: 'Taguatinga Sul (Pistão Sul)', x: 390, y: 760, ra: 'Taguatinga' },
+      
+      'SAMAMBAIA_NORTE': { id: 'SAMAMBAIA_NORTE', name: 'Samambaia Norte', x: 270, y: 810, ra: 'Samambaia' },
+      
+      'AGUAS_CLARAS': { id: 'AGUAS_CLARAS', name: 'Águas Claras Boulevard', x: 520, y: 680, ra: 'Águas Claras' },
+      'GUARA_CENTRO': { id: 'GUARA_CENTRO', name: 'Guará I & II', x: 680, y: 730, ra: 'Guará' },
+      'SUDOESTE': { id: 'SUDOESTE', name: 'Sudoeste / Octogonal', x: 860, y: 600, ra: 'Sudoeste' },
+
+      'RODOVIARIA_PLANO': { id: 'RODOVIARIA_PLANO', name: 'Rodoviária do Plano Piloto', x: 1100, y: 560, ra: 'Plano Piloto' },
+      'TORRE_TV': { id: 'TORRE_TV', name: 'Torre de TV & Eixo Monumental', x: 1020, y: 560, ra: 'Plano Piloto' },
+      'ESPLANADA': { id: 'ESPLANADA', name: 'Esplanada dos Ministérios', x: 1260, y: 560, ra: 'Plano Piloto' },
+      'CONGRESSO': { id: 'CONGRESSO', name: 'Congresso & Praça dos 3 Poderes', x: 1380, y: 560, ra: 'Plano Piloto' },
+      
+      'ASA_NORTE_100': { id: 'ASA_NORTE_100', name: 'Asa Norte W3/L2 (100/300)', x: 1070, y: 420, ra: 'Plano Piloto' },
+      'ASA_NORTE_400': { id: 'ASA_NORTE_400', name: 'Asa Norte Comercial (400/700)', x: 1040, y: 280, ra: 'Plano Piloto' },
+      'ASA_NORTE_FIM': { id: 'ASA_NORTE_FIM', name: 'Fim Asa Norte (Bragueto)', x: 1020, y: 160, ra: 'Plano Piloto' },
+      
+      'ASA_SUL_100': { id: 'ASA_SUL_100', name: 'Asa Sul W3/L2 (100/300)', x: 1130, y: 700, ra: 'Plano Piloto' },
+      'ASA_SUL_400': { id: 'ASA_SUL_400', name: 'Asa Sul Comercial (400/700)', x: 1160, y: 840, ra: 'Plano Piloto' },
+      'ASA_SUL_FIM': { id: 'ASA_SUL_FIM', name: 'Fim Asa Sul (Aeroporto)', x: 1190, y: 980, ra: 'Plano Piloto' },
+
+      'PONTE_JK': { id: 'PONTE_JK', name: 'Ponte JK', x: 1420, y: 720, ra: 'Lago Sul' },
+      'LAGO_SUL': { id: 'LAGO_SUL', name: 'Lago Sul (QI / QL)', x: 1390, y: 890, ra: 'Lago Sul' },
+      'PONTE_COSTA_SILVA': { id: 'PONTE_COSTA_SILVA', name: 'Ponte Costa e Silva', x: 1310, y: 760, ra: 'Lago Sul' },
+      'LAGO_NORTE': { id: 'LAGO_NORTE', name: 'Lago Norte', x: 1250, y: 240, ra: 'Lago Norte' }
+    };
+
+    const ROAD_SEGMENTS = [
+      { id: 'ROAD_ESTRUTURAL_1', from: 'CEILANDIA_NORTE', to: 'TAGUA_NORTE', name: 'Via Estrutural Norte', length: 12 },
+      { id: 'ROAD_ESTRUTURAL_2', from: 'TAGUA_NORTE', to: 'SUDOESTE', name: 'Via Estrutural DF-095', length: 18 },
+      { id: 'ROAD_EPTG_1', from: 'CEILANDIA_CENTRO', to: 'TAGUA_CENTRO', name: 'Av. Elmo Serejo', length: 8 },
+      { id: 'ROAD_EPTG_2', from: 'TAGUA_CENTRO', to: 'AGUAS_CLARAS', name: 'EPTG - Trecho 1', length: 7, isEptg: true },
+      { id: 'ROAD_EPTG_3', from: 'AGUAS_CLARAS', to: 'GARAGEM_SLU', name: 'EPTG DF-085 (Expressa)', length: 14, isEptg: true },
+      { id: 'ROAD_EPTG_4', from: 'GARAGEM_SLU', to: 'SUDOESTE', name: 'EPTG / SIA', length: 6 },
+      { id: 'ROAD_SAMAMBAIA_1', from: 'CEILANDIA_SUL', to: 'SAMAMBAIA_NORTE', name: 'Ligação Ceilândia-Samambaia', length: 6 },
+      { id: 'ROAD_SAMAMBAIA_2', from: 'SAMAMBAIA_NORTE', to: 'ATERRO_SAMAMBAIA', name: 'DF-459 (Acesso Aterro)', length: 8, isDisposal: true },
+      { id: 'ROAD_SAMAMBAIA_3', from: 'TAGUA_SUL', to: 'SAMAMBAIA_NORTE', name: 'Boca da Mata', length: 7 },
+      { id: 'ROAD_EPNB_1', from: 'TAGUA_SUL', to: 'GUARA_CENTRO', name: 'EPNB DF-075', length: 16 },
+      { id: 'ROAD_CEIL_INT', from: 'CEILANDIA_NORTE', to: 'CEILANDIA_CENTRO', name: 'Hélio Prates', length: 5 },
+      { id: 'ROAD_CEIL_INT2', from: 'CEILANDIA_CENTRO', to: 'CEILANDIA_SUL', name: 'Via Leste Ceilândia', length: 5 },
+      { id: 'ROAD_TAGUA_INT1', from: 'TAGUA_NORTE', to: 'TAGUA_CENTRO', name: 'Comercial Norte', length: 6 },
+      { id: 'ROAD_TAGUA_INT2', from: 'TAGUA_CENTRO', to: 'TAGUA_SUL', name: 'Pistão Sul DF-001', length: 6 },
+      { id: 'ROAD_AGUAS_GUARA', from: 'AGUAS_CLARAS', to: 'GUARA_CENTRO', name: 'Av. Castanheiras', length: 8 },
+      { id: 'ROAD_GUARA_SLU', from: 'GUARA_CENTRO', to: 'GARAGEM_SLU', name: 'SIA Trecho 3', length: 5 },
+      { id: 'ROAD_SUDOESTE_PLANO', from: 'SUDOESTE', to: 'TORRE_TV', name: 'Eixo Monumental Oeste', length: 6 },
+      { id: 'ROAD_MONUMENTAL_1', from: 'TORRE_TV', to: 'RODOVIARIA_PLANO', name: 'Eixo Monumental Central', length: 4 },
+      { id: 'ROAD_MONUMENTAL_2', from: 'RODOVIARIA_PLANO', to: 'ESPLANADA', name: 'Esplanada', length: 5 },
+      { id: 'ROAD_MONUMENTAL_3', from: 'ESPLANADA', to: 'CONGRESSO', name: 'Praça dos 3 Poderes', length: 4 },
+      { id: 'ROAD_EIXAO_N1', from: 'RODOVIARIA_PLANO', to: 'ASA_NORTE_100', name: 'Eixão Norte (100/300)', length: 5 },
+      { id: 'ROAD_EIXAO_N2', from: 'ASA_NORTE_100', to: 'ASA_NORTE_400', name: 'Eixão Norte (400/700)', length: 6 },
+      { id: 'ROAD_EIXAO_N3', from: 'ASA_NORTE_400', to: 'ASA_NORTE_FIM', name: 'Saída Norte', length: 6 },
+      { id: 'ROAD_BRAGUETO', from: 'ASA_NORTE_FIM', to: 'LAGO_NORTE', name: 'Ponte do Bragueto', length: 5 },
+      { id: 'ROAD_EIXAO_S1', from: 'RODOVIARIA_PLANO', to: 'ASA_SUL_100', name: 'Eixão Sul (100/300)', length: 5 },
+      { id: 'ROAD_EIXAO_S2', from: 'ASA_SUL_100', to: 'ASA_SUL_400', name: 'Eixão Sul (400/700)', length: 6 },
+      { id: 'ROAD_EIXAO_S3', from: 'ASA_SUL_400', to: 'ASA_SUL_FIM', name: 'Saída Sul / Aeroporto', length: 6 },
+      { id: 'ROAD_PONTE_JK', from: 'ESPLANADA', to: 'PONTE_JK', name: 'Acesso Ponte JK', length: 7 },
+      { id: 'ROAD_LAGO_JK', from: 'PONTE_JK', to: 'LAGO_SUL', name: 'Estrada Dom Bosco', length: 6 },
+      { id: 'ROAD_PONTE_COSTA', from: 'ASA_SUL_100', to: 'PONTE_COSTA_SILVA', name: 'Ponte Costa e Silva', length: 5 },
+      { id: 'ROAD_LAGO_COSTA', from: 'PONTE_COSTA_SILVA', to: 'LAGO_SUL', name: 'QL 12 Lago Sul', length: 5 },
+      { id: 'ROAD_SUL_GUARA', from: 'ASA_SUL_FIM', to: 'GUARA_CENTRO', name: 'EPPA / Park Way', length: 11 }
+    ];
+
+    /* ================= 32 SMART BINS ================= */
+    const SMART_BINS = [
+      { id: 'BIN-01', name: 'Torre de TV Feira', ra: 'Plano Piloto', node: 'TORRE_TV', type: 'Turístico', capacity: 1200, fillPct: 45, generationRate: 1.2, battery: 98, temp: 27 },
+      { id: 'BIN-02', name: 'Rodoviária Plataforma Sup.', ra: 'Plano Piloto', node: 'RODOVIARIA_PLANO', type: 'Comercial', capacity: 2000, fillPct: 82, generationRate: 2.2, battery: 92, temp: 29 },
+      { id: 'BIN-03', name: 'Rodoviária Piso Inf.', ra: 'Plano Piloto', node: 'RODOVIARIA_PLANO', type: 'Comercial', capacity: 2000, fillPct: 75, generationRate: 2.0, battery: 89, temp: 30 },
+      { id: 'BIN-04', name: 'Esplanada Bloco C (Saúde)', ra: 'Plano Piloto', node: 'ESPLANADA', type: 'Governamental', capacity: 1000, fillPct: 35, generationRate: 0.8, battery: 96, temp: 26 },
+      { id: 'BIN-05', name: 'Praça dos Três Poderes', ra: 'Plano Piloto', node: 'CONGRESSO', type: 'Turístico', capacity: 1200, fillPct: 50, generationRate: 1.1, battery: 94, temp: 27 },
+      { id: 'BIN-06', name: 'CLN 108 Norte Comércio', ra: 'Plano Piloto', node: 'ASA_NORTE_100', type: 'Comercial', capacity: 1000, fillPct: 68, generationRate: 1.3, battery: 91, temp: 28 },
+      { id: 'BIN-07', name: 'SQN 305 Norte Residencial', ra: 'Plano Piloto', node: 'ASA_NORTE_100', type: 'Residencial', capacity: 800, fillPct: 30, generationRate: 0.6, battery: 99, temp: 25 },
+      { id: 'BIN-08', name: 'CLN 412 Norte Gastronomia', ra: 'Plano Piloto', node: 'ASA_NORTE_400', type: 'Comercial', capacity: 1500, fillPct: 79, generationRate: 1.6, battery: 85, temp: 29 },
+      { id: 'BIN-09', name: 'Parque Olhos D’Água', ra: 'Plano Piloto', node: 'ASA_NORTE_FIM', type: 'Parque', capacity: 1000, fillPct: 40, generationRate: 0.9, battery: 97, temp: 26 },
+      { id: 'BIN-10', name: 'CLS 104 Sul Restaurantes', ra: 'Plano Piloto', node: 'ASA_SUL_100', type: 'Comercial', capacity: 1500, fillPct: 75, generationRate: 1.7, battery: 88, temp: 28 },
+      { id: 'BIN-11', name: 'SQS 308 Sul Residencial', ra: 'Plano Piloto', node: 'ASA_SUL_100', type: 'Residencial', capacity: 800, fillPct: 22, generationRate: 0.5, battery: 100, temp: 25 },
+      { id: 'BIN-12', name: 'CLS 405 Sul Bares/Bistrô', ra: 'Plano Piloto', node: 'ASA_SUL_400', type: 'Comercial', capacity: 1500, fillPct: 88, generationRate: 1.9, battery: 82, temp: 31 },
+      { id: 'BIN-13', name: 'Estação Metro 114 Sul', ra: 'Plano Piloto', node: 'ASA_SUL_400', type: 'Comercial', capacity: 1200, fillPct: 62, generationRate: 1.3, battery: 93, temp: 27 },
+      { id: 'BIN-14', name: 'Pontão do Lago Sul', ra: 'Lago Sul', node: 'PONTE_COSTA_SILVA', type: 'Turístico', capacity: 1500, fillPct: 86, generationRate: 1.8, battery: 90, temp: 28 },
+      { id: 'BIN-15', name: 'Orla da Ponte JK', ra: 'Lago Sul', node: 'PONTE_JK', type: 'Turístico', capacity: 1200, fillPct: 78, generationRate: 1.5, battery: 92, temp: 28 },
+      { id: 'BIN-16', name: 'QI 09 Lago Sul Comercial', ra: 'Lago Sul', node: 'LAGO_SUL', type: 'Comercial', capacity: 1000, fillPct: 38, generationRate: 0.8, battery: 95, temp: 26 },
+      { id: 'BIN-17', name: 'Deck Norte / Shopping', ra: 'Lago Norte', node: 'LAGO_NORTE', type: 'Comercial', capacity: 1200, fillPct: 54, generationRate: 1.0, battery: 94, temp: 27 },
+      { id: 'BIN-18', name: 'Terraço Shopping Octogonal', ra: 'Sudoeste', node: 'SUDOESTE', type: 'Comercial', capacity: 1500, fillPct: 65, generationRate: 1.4, battery: 91, temp: 28 },
+      { id: 'BIN-19', name: 'CLSW 301 Sudoeste', ra: 'Sudoeste', node: 'SUDOESTE', type: 'Residencial', capacity: 1000, fillPct: 48, generationRate: 0.9, battery: 96, temp: 26 },
+      { id: 'BIN-20', name: 'Feira do Guará', ra: 'Guará', node: 'GUARA_CENTRO', type: 'Comercial', capacity: 2000, fillPct: 91, generationRate: 2.3, battery: 84, temp: 31 },
+      { id: 'BIN-21', name: 'Pólo de Moda Guará II', ra: 'Guará', node: 'GUARA_CENTRO', type: 'Comercial', capacity: 1000, fillPct: 42, generationRate: 0.9, battery: 97, temp: 27 },
+      { id: 'BIN-22', name: 'Parque Águas Claras', ra: 'Águas Claras', node: 'AGUAS_CLARAS', type: 'Parque', capacity: 1200, fillPct: 70, generationRate: 1.4, battery: 90, temp: 27 },
+      { id: 'BIN-23', name: 'Estação Águas Claras Metrô', ra: 'Águas Claras', node: 'AGUAS_CLARAS', type: 'Comercial', capacity: 1800, fillPct: 84, generationRate: 2.1, battery: 88, temp: 29 },
+      { id: 'BIN-24', name: 'Praça do Relógio Taguatinga', ra: 'Taguatinga', node: 'TAGUA_CENTRO', type: 'Comercial', capacity: 2000, fillPct: 89, generationRate: 2.4, battery: 83, temp: 30 },
+      { id: 'BIN-25', name: 'Taguatinga Shopping', ra: 'Taguatinga', node: 'TAGUA_SUL', type: 'Comercial', capacity: 2000, fillPct: 74, generationRate: 1.8, battery: 89, temp: 29 },
+      { id: 'BIN-26', name: 'Taguaparque Norte', ra: 'Taguatinga', node: 'TAGUA_NORTE', type: 'Parque', capacity: 1200, fillPct: 35, generationRate: 0.7, battery: 98, temp: 26 },
+      { id: 'BIN-27', name: 'Pistão Sul Comercial', ra: 'Taguatinga', node: 'TAGUA_SUL', type: 'Comercial', capacity: 1500, fillPct: 66, generationRate: 1.3, battery: 92, temp: 28 },
+      { id: 'BIN-28', name: 'Feira Central Ceilândia', ra: 'Ceilândia', node: 'CEILANDIA_CENTRO', type: 'Comercial', capacity: 2500, fillPct: 93, generationRate: 2.6, battery: 81, temp: 32 },
+      { id: 'BIN-29', name: 'Estação Ceilândia Centro', ra: 'Ceilândia', node: 'CEILANDIA_CENTRO', type: 'Comercial', capacity: 1800, fillPct: 72, generationRate: 1.7, battery: 89, temp: 29 },
+      { id: 'BIN-30', name: 'P-Norte Ceilândia', ra: 'Ceilândia', node: 'CEILANDIA_NORTE', type: 'Residencial', capacity: 1200, fillPct: 50, generationRate: 1.0, battery: 94, temp: 27 },
+      { id: 'BIN-31', name: 'Guariroba QNN 18', ra: 'Ceilândia', node: 'CEILANDIA_SUL', type: 'Residencial', capacity: 1000, fillPct: 41, generationRate: 0.8, battery: 97, temp: 26 },
+      { id: 'BIN-32', name: 'Samambaia Norte Quadra 400', ra: 'Samambaia', node: 'SAMAMBAIA_NORTE', type: 'Residencial', capacity: 1200, fillPct: 58, generationRate: 1.1, battery: 93, temp: 27 }
+    ];
+
+    /* ================= 3 CAMINHÕES SLU ================= */
+    const TRUCKS = [
+      { id: 'TR-01', name: 'SLU Asa Express (TR-01)', color: '#10b981', capacityKg: 5000, loadKg: 1400, currentNode: 'GARAGEM_SLU', targetNode: 'RODOVIARIA_PLANO', path: [], pathProgress: 0, speed: 1.2, state: 'EM_ROTA', targetBinId: 'BIN-02', totalDistanceKm: 14.2, totalCollectedKg: 3400, disposalTrips: 1, collectTimer: 0 },
+      { id: 'TR-02', name: 'SLU Águas/Taguatinga (TR-02)', color: '#06b6d4', capacityKg: 5000, loadKg: 2800, currentNode: 'TAGUA_CENTRO', targetNode: 'AGUAS_CLARAS', path: [], pathProgress: 0, speed: 1.1, state: 'EM_ROTA', targetBinId: 'BIN-23', totalDistanceKm: 18.6, totalCollectedKg: 4200, disposalTrips: 1, collectTimer: 0 },
+      { id: 'TR-03', name: 'SLU Ceilândia/Oeste (TR-03)', color: '#f59e0b', capacityKg: 5000, loadKg: 4200, currentNode: 'CEILANDIA_CENTRO', targetNode: 'ATERRO_SAMAMBAIA', path: [], pathProgress: 0, speed: 1.0, state: 'INDO_DESCARTE', targetBinId: null, totalDistanceKm: 22.1, totalCollectedKg: 5900, disposalTrips: 2, collectTimer: 0 }
+    ];
+
+    /* ================= SIMULATION STATE ================= */
+    let simState = {
+      isRunning: true,
+      simSpeed: 60,
+      simTimeSeconds: 8 * 3600,
+      simDay: 1,
+      strategy: 'VRP_SMART',
+      weather: 'SECO',
+      weatherFactor: 1.0,
+      wasteRateMultiplier: 1.0,
+      isEptgBlocked: false,
+      showHeatmap: false,
+      showTrails: true,
+      selectedEntity: null,
+      followedTruckId: null,
+      
+      // Real-Time Accumulators
+      smartTotalCost: 142.80,
+      baselineTotalCost: 231.50,
+      totalWasteCollectedKg: 4850,
+      totalDistanceKm: 54.9,
+      baselineDistanceKm: 86.1,
+      fuelSavedLiters: 31.2,
+      co2SavedKg: 83.6,
+      overflowIncidentsCurrent: 0,
+      overflowIncidentsPrevented: 14,
+      mqttCount: 1428,
+      lastTickTime: performance.now(),
+      
+      // Camera
+      zoom: 0.95,
+      panX: -40,
+      panY: 30,
+      isDragging: false,
+      dragStartX: 0,
+      dragStartY: 0,
+
+      // Timeline Events
+      events: []
+    };
+
+    /* ================= PATHFINDING (DIJKSTRA) ================= */
+    function buildAdjacencyList() {
+      const adj = {};
+      for (const nodeKey in MAP_NODES) adj[nodeKey] = [];
+      ROAD_SEGMENTS.forEach(road => {
+        if (simState.isEptgBlocked && (road.id === 'ROAD_EPTG_2' || road.id === 'ROAD_EPTG_3')) return;
+        let weight = road.length;
+        const hour = (simState.simTimeSeconds / 3600) % 24;
+        const isPeak = (hour >= 7.5 && hour <= 9.5) || (hour >= 17.5 && hour <= 19.5);
+        if (isPeak && road.isEptg) weight *= 1.8;
+        adj[road.from].push({ node: road.to, weight });
+        adj[road.to].push({ node: road.from, weight });
+      });
+      return adj;
+    }
+
+    function findShortestPath(startNodeId, targetNodeId) {
+      if (startNodeId === targetNodeId) return [startNodeId];
+      const adj = buildAdjacencyList();
+      const distances = {};
+      const previous = {};
+      const pq = [{ node: startNodeId, dist: 0 }];
+
+      for (const node in MAP_NODES) {
+        distances[node] = Infinity;
+        previous[node] = null;
+      }
+      distances[startNodeId] = 0;
+
+      while (pq.length > 0) {
+        pq.sort((a, b) => a.dist - b.dist);
+        const current = pq.shift();
+        if (current.node === targetNodeId) break;
+        if (current.dist > distances[current.node]) continue;
+
+        const neighbors = adj[current.node] || [];
+        for (const neighbor of neighbors) {
+          const alt = distances[current.node] + neighbor.weight;
+          if (alt < distances[neighbor.node]) {
+            distances[neighbor.node] = alt;
+            previous[neighbor.node] = current.node;
+            pq.push({ node: neighbor.node, dist: alt });
+          }
+        }
+      }
+
+      const path = [];
+      let u = targetNodeId;
+      if (distances[u] === Infinity) return [startNodeId];
+      while (u) {
+        path.unshift(u);
+        u = previous[u];
+      }
+      return path;
+    }
+
+    /* ================= ROUTING SOLVER ================= */
+    function solveNextTargetForTruck(truck) {
+      if (truck.loadKg >= truck.capacityKg * 0.90) {
+        truck.state = 'INDO_DESCARTE';
+        truck.targetNode = 'ATERRO_SAMAMBAIA';
+        truck.targetBinId = null;
+        truck.path = findShortestPath(truck.currentNode, 'ATERRO_SAMAMBAIA');
+        truck.pathProgress = 0;
+        addTimelineEvent('DESP_ATERRO', `Caminhão ${truck.id} lotado (${Math.round(truck.loadKg/truck.capacityKg*100)}%). Roteado ao Aterro Samambaia.`);
+        return;
+      }
+
+      let eligibleBins = SMART_BINS.filter(b => {
+        const targetedByOther = TRUCKS.some(t => t.id !== truck.id && t.targetBinId === b.id);
+        return !targetedByOther && b.fillPct >= 20;
+      });
+
+      if (eligibleBins.length === 0) {
+        truck.state = 'OCIOSO';
+        truck.targetNode = 'GARAGEM_SLU';
+        truck.targetBinId = null;
+        truck.path = findShortestPath(truck.currentNode, 'GARAGEM_SLU');
+        truck.pathProgress = 0;
+        return;
+      }
+
+      let chosenBin = null;
+      let reasonText = "";
+
+      if (simState.strategy === 'VRP_SMART') {
+        let bestScore = -Infinity;
+        eligibleBins.forEach(bin => {
+          const binNode = MAP_NODES[bin.node];
+          const currNode = MAP_NODES[truck.currentNode];
+          const distEst = Math.hypot(binNode.x - currNode.x, binNode.y - currNode.y) / 50;
+          let urgency = bin.fillPct;
+          if (bin.fillPct >= 100) urgency *= 4.0;
+          else if (bin.fillPct >= 85) urgency *= 2.8;
+          else if (bin.fillPct >= 70) urgency *= 1.6;
+
+          const score = (Math.pow(urgency, 1.8)) / (distEst + 2.5);
+          if (score > bestScore) {
+            bestScore = score;
+            chosenBin = bin;
+          }
+        });
+        reasonText = chosenBin ? `${truck.id} despachado para ${chosenBin.id} (${chosenBin.name}) com score VRP ${bestScore.toFixed(1)} (Lotação: ${Math.round(chosenBin.fillPct)}%).` : "";
+      } else if (simState.strategy === 'FIXED') {
+        eligibleBins.sort((a, b) => parseInt(a.id.replace('BIN-', '')) - parseInt(b.id.replace('BIN-', '')));
+        chosenBin = eligibleBins[0];
+        reasonText = `${truck.id} seguindo itinerário pré-definido sequencial para ${chosenBin.id}.`;
+      } else {
+        let minDistance = Infinity;
+        eligibleBins.forEach(bin => {
+          const binNode = MAP_NODES[bin.node];
+          const currNode = MAP_NODES[truck.currentNode];
+          const dist = Math.hypot(binNode.x - currNode.x, binNode.y - currNode.y);
+          if (dist < minDistance) {
+            minDistance = dist;
+            chosenBin = bin;
+          }
+        });
+        reasonText = `${truck.id} direcionado ao ponto mais próximo: ${chosenBin.id} (${chosenBin.name}).`;
+      }
+
+      if (chosenBin) {
+        truck.state = 'EM_ROTA';
+        truck.targetBinId = chosenBin.id;
+        truck.targetNode = chosenBin.node;
+        truck.path = findShortestPath(truck.currentNode, chosenBin.node);
+        truck.pathProgress = 0;
+        addTimelineEvent('DISPATCH', reasonText);
+      }
+    }
+
+    /* ================= MAIN SIMULATION TICK ================= */
+    function updateSimulation(deltaSimSeconds) {
+      simState.simTimeSeconds += deltaSimSeconds;
+      if (simState.simTimeSeconds >= 24 * 3600) {
+        simState.simTimeSeconds -= 24 * 3600;
+        simState.simDay++;
+      }
+
+      const hour = (simState.simTimeSeconds / 3600) % 24;
+      let timeMultiplier = 1.0;
+      if ((hour >= 7 && hour <= 9) || (hour >= 18 && hour <= 21)) timeMultiplier = 1.7;
+      else if (hour >= 12 && hour <= 14) timeMultiplier = 1.9;
+      else if (hour >= 1 && hour <= 5) timeMultiplier = 0.2;
+
+      let currentOverflows = 0;
+      SMART_BINS.forEach(bin => {
+        const noise = 0.85 + seededRandom() * 0.3;
+        const wasteAddedKg = (bin.generationRate * timeMultiplier * simState.weatherFactor * simState.wasteRateMultiplier * noise * (deltaSimSeconds / 60));
+        const wasteAddedPct = (wasteAddedKg / (bin.capacity * 0.4)) * 100;
+        bin.fillPct = Math.min(120, bin.fillPct + wasteAddedPct);
+        bin.temp = 25 + Math.sin(hour / 3.8) * 6 + (bin.fillPct > 80 ? 3 : 0);
+        bin.battery = Math.max(15, bin.battery - 0.00005 * deltaSimSeconds);
+
+        if (bin.fillPct >= 100) currentOverflows++;
+      });
+      simState.overflowIncidentsCurrent = currentOverflows;
+
+      TRUCKS.forEach(truck => {
+        const effectiveSpeed = truck.speed * simState.weatherFactor * (simState.isEptgBlocked ? 0.85 : 1.0);
+
+        if (truck.state === 'EM_ROTA' || truck.state === 'INDO_DESCARTE' || truck.state === 'OCIOSO') {
+          if (!truck.path || truck.path.length <= 1) {
+            if (truck.state === 'INDO_DESCARTE' && truck.currentNode === 'ATERRO_SAMAMBAIA') {
+              truck.state = 'DESCARREGANDO';
+              truck.collectTimer = 18;
+              playCollectSound();
+              addTimelineEvent('UNLOAD_START', `${truck.id} chegou ao Aterro Samambaia. Iniciando descarga.`);
+            } else if (truck.state === 'EM_ROTA' && truck.targetBinId) {
+              const targetBin = SMART_BINS.find(b => b.id === truck.targetBinId);
+              if (targetBin && truck.currentNode === targetBin.node) {
+                truck.state = 'COLETANDO';
+                truck.collectTimer = 12;
+                playCollectSound();
+                addTimelineEvent('COLLECT_START', `${truck.id} acoplou em ${targetBin.id}. Esvaziando compartimento.`);
+              } else {
+                solveNextTargetForTruck(truck);
+              }
+            } else {
+              solveNextTargetForTruck(truck);
+            }
+          } else {
+            const fromNodeKey = truck.path[0];
+            const toNodeKey = truck.path[1];
+            const fromNode = MAP_NODES[fromNodeKey];
+            const toNode = MAP_NODES[toNodeKey];
+            const segmentDist = Math.hypot(toNode.x - fromNode.x, toNode.y - fromNode.y);
+
+            const speedPixelsPerSec = effectiveSpeed * 8;
+            truck.pathProgress += (speedPixelsPerSec * deltaSimSeconds) / segmentDist;
+
+            const kmTraveled = (speedPixelsPerSec * deltaSimSeconds / 30);
+            truck.totalDistanceKm += kmTraveled;
+            simState.totalDistanceKm += kmTraveled;
+            simState.smartTotalCost += kmTraveled * 3.50 + (deltaSimSeconds / 3600) * 45.0;
+            simState.baselineTotalCost += kmTraveled * 4.90 + (deltaSimSeconds / 3600) * 62.0;
+
+            if (truck.pathProgress >= 1.0) {
+              truck.currentNode = toNodeKey;
+              truck.path.shift();
+              truck.pathProgress = 0;
+            }
+          }
+        } else if (truck.state === 'COLETANDO') {
+          truck.collectTimer -= deltaSimSeconds;
+          if (truck.collectTimer <= 0) {
+            const targetBin = SMART_BINS.find(b => b.id === truck.targetBinId);
+            if (targetBin) {
+              const binWasteKg = (targetBin.fillPct / 100) * (targetBin.capacity * 0.4);
+              const availableSpaceKg = truck.capacityKg - truck.loadKg;
+              const collectedKg = Math.min(binWasteKg, availableSpaceKg);
+
+              truck.loadKg += collectedKg;
+              truck.totalCollectedKg += collectedKg;
+              simState.totalWasteCollectedKg += collectedKg;
+
+              const remainingPct = Math.max(2, ((binWasteKg - collectedKg) / (targetBin.capacity * 0.4)) * 100);
+              targetBin.fillPct = remainingPct;
+
+              addTimelineEvent('COLLECT', `Coleta concluída em ${targetBin.id}: ${Math.round(collectedKg)}kg carregados no ${truck.id}.`);
+              if (targetBin.fillPct <= 5) simState.overflowIncidentsPrevented++;
+            }
+            truck.targetBinId = null;
+            solveNextTargetForTruck(truck);
+          }
+        } else if (truck.state === 'DESCARREGANDO') {
+          truck.collectTimer -= deltaSimSeconds;
+          if (truck.collectTimer <= 0) {
+            addTimelineEvent('DISPOSAL', `${truck.id} descarregou ${Math.round(truck.loadKg)}kg no Aterro Sanitário Samambaia.`);
+            truck.loadKg = 0;
+            truck.disposalTrips++;
+            simState.smartTotalCost += 85.0;
+            simState.baselineTotalCost += 120.0;
+            solveNextTargetForTruck(truck);
+          }
+        }
+      });
+
+      simState.fuelSavedLiters = (simState.totalDistanceKm * 0.38);
+      simState.co2SavedKg = simState.fuelSavedLiters * 2.68;
+
+      // Follow camera if active
+      if (simState.followedTruckId) {
+        const trk = TRUCKS.find(t => t.id === simState.followedTruckId);
+        if (trk) {
+          const p = getTruckInterpolatedPos(trk);
+          simState.panX = (900 - p.x) * simState.zoom;
+          simState.panY = (600 - p.y) * simState.zoom;
+        }
+      }
+    }
+
+    /* ================= 2D CANVAS RENDERER ================= */
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      const container = document.getElementById('canvas-container');
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    function renderCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.save();
+      ctx.translate(canvas.width / 2 + simState.panX, canvas.height / 2 + simState.panY);
+      ctx.scale(simState.zoom, simState.zoom);
+      ctx.translate(-900, -600);
+
+      // 1. Lago Paranoá Geometry (Brasília Trademark Lake)
+      ctx.beginPath();
+      ctx.moveTo(1180, 100);
+      ctx.bezierCurveTo(1290, 180, 1340, 360, 1310, 520);
+      ctx.bezierCurveTo(1380, 620, 1500, 700, 1460, 920);
+      ctx.bezierCurveTo(1400, 1060, 1260, 1080, 1220, 960);
+      ctx.bezierCurveTo(1260, 850, 1280, 680, 1200, 560);
+      ctx.bezierCurveTo(1150, 480, 1140, 260, 1180, 100);
+      ctx.fillStyle = 'rgba(2, 132, 199, 0.15)';
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.5)';
+      ctx.font = '600 14px "JetBrains Mono", monospace';
+      ctx.fillText('LAGO PARANOÁ', 1330, 480);
+
+      // 2. Region Typography Labels
+      drawRegionLabel('PLANO PILOTO', 1100, 510);
+      drawRegionLabel('TAGUATINGA', 380, 550);
+      drawRegionLabel('CEILÂNDIA', 180, 450);
+      drawRegionLabel('ÁGUAS CLARAS', 520, 620);
+      drawRegionLabel('SAMAMBAIA', 260, 750);
+      drawRegionLabel('GUARA I & II', 680, 690);
+      drawRegionLabel('LAGO SUL', 1390, 830);
+
+      // 3. Roads & Arteries
+      ROAD_SEGMENTS.forEach(road => {
+        const from = MAP_NODES[road.from];
+        const to = MAP_NODES[road.to];
+        const isBlocked = simState.isEptgBlocked && (road.id === 'ROAD_EPTG_2' || road.id === 'ROAD_EPTG_3');
+
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+
+        if (isBlocked) {
+          ctx.strokeStyle = '#ef4444';
+          ctx.lineWidth = 5;
+          ctx.setLineDash([8, 6]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        } else {
+          ctx.strokeStyle = road.isEptg ? '#334155' : '#1e293b';
+          ctx.lineWidth = road.isEptg ? 6 : 3.5;
+          ctx.stroke();
+
+          ctx.strokeStyle = road.isDisposal ? 'rgba(236, 72, 153, 0.35)' : 'rgba(71, 85, 105, 0.25)';
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+        }
+
+        if (road.isEptg || isBlocked) {
+          const midX = (from.x + to.x) / 2;
+          const midY = (from.y + to.y) / 2;
+          ctx.fillStyle = isBlocked ? '#f87171' : 'rgba(148, 163, 184, 0.4)';
+          ctx.font = '8px "JetBrains Mono", monospace';
+          ctx.fillText(road.name + (isBlocked ? ' [INTERDITADA]' : ''), midX - 35, midY - 6);
+        }
+      });
+
+      // 4. Glowing Route Trails
+      if (simState.showTrails && document.getElementById('layer-routes')?.checked) {
+        TRUCKS.forEach(truck => {
+          if (truck.path && truck.path.length > 0) {
+            ctx.beginPath();
+            const currPos = getTruckInterpolatedPos(truck);
+            ctx.moveTo(currPos.x, currPos.y);
+            truck.path.forEach(nKey => {
+              const n = MAP_NODES[nKey];
+              ctx.lineTo(n.x, n.y);
+            });
+            ctx.strokeStyle = truck.color;
+            ctx.lineWidth = 2.2;
+            ctx.setLineDash([6, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        });
+      }
+
+      // 5. Special Facilities (Aterro & Garagem SLU)
+      drawFacilityNode(MAP_NODES['ATERRO_SAMAMBAIA'], 'ATERRO SANITÁRIO', '#ec4899');
+      drawFacilityNode(MAP_NODES['GARAGEM_SLU'], 'GARAGEM CENTRAL SLU', '#10b981');
+
+      // 6. Heatmap Layer
+      if (simState.showHeatmap && document.getElementById('layer-heatmap')?.checked) {
+        SMART_BINS.forEach(bin => {
+          const node = MAP_NODES[bin.node];
+          const radius = 25 + (bin.fillPct / 100) * 45;
+          const grad = ctx.createRadialGradient(node.x, node.y, 4, node.x, node.y, radius);
+          grad.addColorStop(0, bin.fillPct >= 85 ? 'rgba(239, 68, 68, 0.4)' : 'rgba(245, 158, 11, 0.25)');
+          grad.addColorStop(1, 'transparent');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      }
+
+      // 7. Smart Bins Markers
+      if (document.getElementById('layer-bins')?.checked) {
+        SMART_BINS.forEach(bin => {
+          const node = MAP_NODES[bin.node];
+          const idx = parseInt(bin.id.replace('BIN-', '')) % 4;
+          const bx = node.x + (idx % 2 === 0 ? 1 : -1) * (idx * 5);
+          const by = node.y + (idx > 1 ? 1 : -1) * (idx * 5);
+
+          let binColor = '#10b981';
+          let isOverflow = false;
+          if (bin.fillPct >= 100) { binColor = '#dc2626'; isOverflow = true; }
+          else if (bin.fillPct >= 85) binColor = '#ef4444';
+          else if (bin.fillPct >= 70) binColor = '#f97316';
+          else if (bin.fillPct >= 50) binColor = '#f59e0b';
+
+          if (isOverflow) {
+            ctx.beginPath();
+            ctx.arc(bx, by, 14, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(220, 38, 38, 0.25)';
+            ctx.fill();
+          }
+
+          // Bin Gauge Ring
+          ctx.beginPath();
+          ctx.arc(bx, by, 8.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#0f172a';
+          ctx.fill();
+          ctx.lineWidth = 2.2;
+          ctx.strokeStyle = binColor;
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(bx, by, 5, 0, Math.PI * 2);
+          ctx.fillStyle = binColor;
+          ctx.fill();
+
+          // Text details
+          ctx.fillStyle = '#f8fafc';
+          ctx.font = '600 8.5px "JetBrains Mono", monospace';
+          ctx.fillText(bin.id, bx - 13, by - 11);
+          ctx.fillStyle = binColor;
+          ctx.fillText(`${Math.round(bin.fillPct)}%`, bx - 9, by + 18);
+        });
+      }
+
+      // 8. Trucks Markers
+      if (document.getElementById('layer-trucks')?.checked) {
+        TRUCKS.forEach(truck => {
+          const pos = getTruckInterpolatedPos(truck);
+
+          // Truck Halo / Base
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, 14, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = truck.color;
+          ctx.stroke();
+
+          // Icon Core
+          ctx.fillStyle = truck.color;
+          ctx.fillRect(pos.x - 7, pos.y - 5, 14, 10);
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(pos.x - 3.5, pos.y - 3.5, 7, 7);
+
+          // Load mini gauge
+          const ratio = truck.loadKg / truck.capacityKg;
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(pos.x - 14, pos.y - 15, 28, 3.5);
+          ctx.fillStyle = ratio > 0.85 ? '#ef4444' : truck.color;
+          ctx.fillRect(pos.x - 14, pos.y - 15, 28 * ratio, 3.5);
+
+          // Labels
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 9px "JetBrains Mono", monospace';
+          ctx.fillText(truck.id, pos.x - 12, pos.y + 19);
+        });
+      }
+
+      ctx.restore();
+    }
+
+    function getTruckInterpolatedPos(truck) {
+      if (!truck.path || truck.path.length <= 1) {
+        const n = MAP_NODES[truck.currentNode] || MAP_NODES['GARAGEM_SLU'];
+        return { x: n.x, y: n.y };
+      }
+      const from = MAP_NODES[truck.path[0]];
+      const to = MAP_NODES[truck.path[1]];
+      const progress = truck.pathProgress || 0;
+      return {
+        x: from.x + (to.x - from.x) * progress,
+        y: from.y + (to.y - from.y) * progress
+      };
+    }
+
+    function drawRegionLabel(text, x, y) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(148, 163, 184, 0.12)';
+      ctx.font = 'bold 18px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(text, x, y);
+      ctx.restore();
+    }
+
+    function drawFacilityNode(node, label, color) {
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, 12, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = color;
+      ctx.stroke();
+
+      ctx.fillStyle = color;
+      ctx.fillRect(node.x - 4, node.y - 4, 8, 8);
+
+      ctx.fillStyle = color;
+      ctx.font = '600 9px Inter, sans-serif';
+      ctx.fillText(label, node.x - 35, node.y + 20);
+    }
+
+    /* ================= MAIN ANIMATION LOOP ================= */
+    let lastAnimTime = performance.now();
+    function animationLoop(timestamp) {
+      const deltaRealSeconds = Math.min(0.1, (timestamp - lastAnimTime) / 1000);
+      lastAnimTime = timestamp;
+
+      if (simState.isRunning) {
+        const deltaSimSeconds = deltaRealSeconds * simState.simSpeed;
+        updateSimulation(deltaSimSeconds);
+      }
+
+      renderCanvas();
+      updateMetricsDashboard();
+
+      requestAnimationFrame(animationLoop);
+    }
+
+    /* ================= UI EVENT HANDLERS ================= */
+    function togglePlayPause() {
+      simState.isRunning = !simState.isRunning;
+      const icon = document.getElementById('play-pause-icon');
+      const btn = document.getElementById('btn-toggle-play');
+      if (simState.isRunning) {
+        icon.setAttribute('data-lucide', 'pause');
+        btn.classList.replace('bg-amber-500', 'bg-emerald-500');
+        addTimelineEvent('SYSTEM', 'Simulação retomada.');
+      } else {
+        icon.setAttribute('data-lucide', 'play');
+        btn.classList.replace('bg-emerald-500', 'bg-amber-500');
+        addTimelineEvent('SYSTEM', 'Simulação pausada pelo operador.');
+      }
+      lucide.createIcons();
+    }
+
+    function stepForwardOneMinute() {
+      updateSimulation(60);
+      renderCanvas();
+      updateMetricsDashboard();
+      playBeep(650, 'sine', 0.05);
+      addTimelineEvent('SYSTEM', 'Passo de 1 minuto simulado executado.');
+    }
+
+    function setSimSpeed(speed) {
+      simState.simSpeed = speed;
+      document.querySelectorAll('.speed-btn').forEach(b => {
+        if (parseInt(b.dataset.speed) === speed) {
+          b.className = 'speed-btn px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold transition';
+        } else {
+          b.className = 'speed-btn px-1.5 py-0.5 rounded text-command-textMuted hover:text-white transition';
+        }
+      });
+      playBeep(520, 'sine', 0.04);
+      addTimelineEvent('SPEED', `Velocidade alterada para ${speed}x.`);
+    }
+
+    function changeStrategy(strategy) {
+      simState.strategy = strategy;
+      playBeep(680, 'sine', 0.07);
+      addTimelineEvent('STRATEGY', `Estratégia alterada para ${strategy}. Rotas recalculadas.`);
+      TRUCKS.forEach(t => solveNextTargetForTruck(t));
+    }
+
+    function setWeather(weatherType) {
+      simState.weather = weatherType;
+      const label = document.getElementById('weather-label');
+      const icon = document.getElementById('weather-icon');
+
+      if (weatherType === 'SECO') {
+        simState.weatherFactor = 1.0;
+        label.innerText = 'Seco (1.0x)';
+        icon.setAttribute('data-lucide', 'sun');
+        icon.className = 'w-3.5 h-3.5 text-amber-400';
+      } else if (weatherType === 'CHUVA_LEVE') {
+        simState.weatherFactor = 0.95;
+        label.innerText = 'Chuva Leve (0.95x)';
+        icon.setAttribute('data-lucide', 'cloud-rain');
+        icon.className = 'w-3.5 h-3.5 text-blue-400';
+      } else if (weatherType === 'CHUVA_FORTE') {
+        simState.weatherFactor = 0.70;
+        label.innerText = 'Chuva Forte (0.7x)';
+        icon.setAttribute('data-lucide', 'cloud-lightning');
+        icon.className = 'w-3.5 h-3.5 text-amber-500';
+        triggerThunderFlash();
+      } else if (weatherType === 'TEMPESTADE') {
+        simState.weatherFactor = 0.50;
+        label.innerText = 'Tempestade (0.5x)';
+        icon.setAttribute('data-lucide', 'zap');
+        icon.className = 'w-3.5 h-3.5 text-rose-500';
+        triggerThunderFlash();
+        playAlertSound();
+      }
+      lucide.createIcons();
+      addTimelineEvent('WEATHER', `Condição meteorológica: ${weatherType} (Fator velocidade: ${simState.weatherFactor}).`);
+    }
+
+    function triggerThunderFlash() {
+      const el = document.getElementById('storm-flash');
+      el.style.opacity = '1';
+      setTimeout(() => { el.style.opacity = '0'; }, 100);
+    }
+
+    function toggleHeatmap() {
+      simState.showHeatmap = !simState.showHeatmap;
+      const chk = document.getElementById('layer-heatmap');
+      if (chk) chk.checked = simState.showHeatmap;
+      renderCanvas();
+    }
+
+    function toggleTruckTrails() {
+      simState.showTrails = !simState.showTrails;
+      const chk = document.getElementById('layer-routes');
+      if (chk) chk.checked = simState.showTrails;
+      renderCanvas();
+    }
+
+    function injectRandomOverflow() {
+      const candidates = SMART_BINS.filter(b => b.fillPct < 85);
+      if (candidates.length > 0) {
+        const b = candidates[Math.floor(Math.random() * candidates.length)];
+        b.fillPct = 96.0;
+        playAlertSound();
+        addTimelineEvent('CRITICAL', `ALERTA CRÍTICO: ${b.id} (${b.name}) atingiu 96% de ocupação.`);
+        TRUCKS.forEach(t => solveNextTargetForTruck(t));
+      }
+    }
+
+    function toggleRoadBlock() {
+      simState.isEptgBlocked = !simState.isEptgBlocked;
+      const btn = document.getElementById('btn-roadblock');
+      if (simState.isEptgBlocked) {
+        btn.classList.replace('border-amber-800/50', 'border-rose-500');
+        btn.innerHTML = '<i data-lucide="shield-alert" class="w-3.5 h-3.5 text-rose-400"></i> Desbloquear EPTG';
+        playAlertSound();
+        addTimelineEvent('BLOCK', 'Acidente grave: EPTG DF-085 totalmente interditada. Rotas recalculadas!');
+      } else {
+        btn.classList.replace('border-rose-500', 'border-amber-800/50');
+        btn.innerHTML = '<i data-lucide="shield-alert" class="w-3.5 h-3.5 text-amber-400"></i> Interditar EPTG';
+        addTimelineEvent('UNBLOCK', 'Tráfego liberado na EPTG DF-085.');
+      }
+      lucide.createIcons();
+      TRUCKS.forEach(t => {
+        if (t.path && t.path.length > 0) {
+          t.path = findShortestPath(t.currentNode, t.targetNode);
+          t.pathProgress = 0;
+        }
+      });
+    }
+
+    function confirmReset() {
+      if (confirm("Deseja redefinir a simulação para o estado inicial da Seed?")) {
+        simState.simTimeSeconds = 8 * 3600;
+        simState.simDay = 1;
+        simState.totalDistanceKm = 0;
+        simState.totalWasteCollectedKg = 0;
+        simState.smartTotalCost = 0;
+        simState.baselineTotalCost = 0;
+        SMART_BINS.forEach(b => { b.fillPct = 20 + seededRandom() * 40; });
+        TRUCKS.forEach(t => {
+          t.loadKg = 0;
+          t.state = 'OCIOSO';
+          t.currentNode = 'GARAGEM_SLU';
+          t.path = [];
+          t.pathProgress = 0;
+        });
+        TRUCKS.forEach(t => solveNextTargetForTruck(t));
+        addTimelineEvent('SYSTEM', 'Simulação reinicializada com sucesso.');
+      }
+    }
+
+    /* ================= CAMERA NAVIGATION ================= */
+    const canvasCont = document.getElementById('canvas-container');
+    canvasCont.addEventListener('mousedown', (e) => {
+      simState.isDragging = true;
+      simState.dragStartX = e.clientX - simState.panX;
+      simState.dragStartY = e.clientY - simState.panY;
+      cancelFollowTruck();
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (simState.isDragging) {
+        simState.panX = e.clientX - simState.dragStartX;
+        simState.panY = e.clientY - simState.dragStartY;
+      }
+    });
+    window.addEventListener('mouseup', () => { simState.isDragging = false; });
+
+    canvasCont.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.08 : 0.92;
+      simState.zoom = Math.min(2.5, Math.max(0.4, simState.zoom * factor));
+      cancelFollowTruck();
+    }, { passive: false });
+
+    function zoomIn() { simState.zoom = Math.min(2.5, simState.zoom * 1.15); cancelFollowTruck(); }
+    function zoomOut() { simState.zoom = Math.max(0.4, simState.zoom * 0.85); cancelFollowTruck(); }
+    function resetCamera() { simState.zoom = 0.95; simState.panX = -40; simState.panY = 30; cancelFollowTruck(); }
+
+    function focusRegion(reg) {
+      cancelFollowTruck();
+      if (reg === 'PLANO') { simState.panX = -180; simState.panY = 20; simState.zoom = 1.3; }
+      else if (reg === 'TAGUATINGA') { simState.panX = 500; simState.panY = -30; simState.zoom = 1.4; }
+      else if (reg === 'CEILANDIA') { simState.panX = 720; simState.panY = 120; simState.zoom = 1.4; }
+      else if (reg === 'AGUAS') { simState.panX = 350; simState.panY = -80; simState.zoom = 1.5; }
+      else if (reg === 'SAMAMBAIA') { simState.panX = 640; simState.panY = -220; simState.zoom = 1.3; }
+      else if (reg === 'GUARA') { simState.panX = 200; simState.panY = -120; simState.zoom = 1.5; }
+      else if (reg === 'LAGO_SUL') { simState.panX = -450; simState.panY = -220; simState.zoom = 1.3; }
+    }
+
+    function followTruck(truckId) {
+      simState.followedTruckId = truckId;
+      document.getElementById('follow-truck-indicator').classList.remove('hidden');
+      document.getElementById('follow-truck-name').innerText = truckId;
+      simState.zoom = 1.6;
+    }
+
+    function cancelFollowTruck() {
+      simState.followedTruckId = null;
+      document.getElementById('follow-truck-indicator').classList.add('hidden');
+    }
+
+    /* ================= CLICK SELECTION & INSPECTOR ================= */
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+
+      const vX = (clickX - (canvas.width / 2 + simState.panX)) / simState.zoom + 900;
+      const vY = (clickY - (canvas.height / 2 + simState.panY)) / simState.zoom + 600;
+
+      // Check Bin click
+      let clickedBin = null;
+      for (const bin of SMART_BINS) {
+        const node = MAP_NODES[bin.node];
+        if (Math.hypot(node.x - vX, node.y - vY) < 22) {
+          clickedBin = bin;
+          break;
+        }
+      }
+      if (clickedBin) {
+        inspectBin(clickedBin);
+        return;
+      }
+
+      // Check Truck click
+      let clickedTruck = null;
+      for (const trk of TRUCKS) {
+        const pos = getTruckInterpolatedPos(trk);
+        if (Math.hypot(pos.x - vX, pos.y - vY) < 26) {
+          clickedTruck = trk;
+          break;
+        }
+      }
+      if (clickedTruck) {
+        inspectTruck(clickedTruck);
+        return;
+      }
+
+      clearSelection();
+    });
+
+    function inspectBin(bin) {
+      simState.selectedEntity = { type: 'BIN', data: bin };
+      document.getElementById('inspect-title').innerText = `${bin.id} • ${bin.name}`;
+      document.getElementById('inspect-subtitle').innerText = `${bin.ra} • Tipo: ${bin.type}`;
+      document.getElementById('btn-close-inspect').classList.remove('hidden');
+      
+      const body = document.getElementById('inspect-body');
+      body.innerHTML = `
+        <div class="space-y-2">
+          <div class="flex justify-between items-center bg-command-bg p-2 rounded-lg border border-command-border">
+            <span class="text-command-textMuted">Ocupação Atual:</span>
+            <span class="font-bold font-mono text-sm ${bin.fillPct >= 85 ? 'text-rose-400' : 'text-emerald-400'}">${bin.fillPct.toFixed(1)}% (${Math.round((bin.fillPct/100)*(bin.capacity*0.4))} kg)</span>
+          </div>
+          <div class="grid grid-cols-2 gap-1.5 font-mono text-[10px]">
+            <div class="bg-command-bg p-1.5 rounded border border-command-border">
+              <span class="text-command-textMuted block">Capacidade</span>
+              <span class="text-white">${bin.capacity} Litros</span>
+            </div>
+            <div class="bg-command-bg p-1.5 rounded border border-command-border">
+              <span class="text-command-textMuted block">Bateria Sensor</span>
+              <span class="text-white">${Math.round(bin.battery)}%</span>
+            </div>
+            <div class="bg-command-bg p-1.5 rounded border border-command-border">
+              <span class="text-command-textMuted block">Temperatura</span>
+              <span class="text-white">${bin.temp.toFixed(1)} °C</span>
+            </div>
+            <div class="bg-command-bg p-1.5 rounded border border-command-border">
+              <span class="text-command-textMuted block">Taxa Geração</span>
+              <span class="text-white">${bin.generationRate} kg/min</span>
+            </div>
+          </div>
+          <div class="flex gap-1.5 pt-1">
+            <button onclick="manuallyEmptyBin('${bin.id}')" class="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-lg transition">Esvaziar</button>
+            <button onclick="manuallyFillBin('${bin.id}')" class="flex-1 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-lg transition">+Lotação 95%</button>
+          </div>
+        </div>
+      `;
+      playBeep(600, 'sine', 0.04);
+    }
+
+    function inspectTruck(truck) {
+      simState.selectedEntity = { type: 'TRUCK', data: truck };
+      document.getElementById('inspect-title').innerText = `${truck.id} • ${truck.name}`;
+      document.getElementById('inspect-subtitle').innerText = `Estado Atual: ${truck.state}`;
+      document.getElementById('btn-close-inspect').classList.remove('hidden');
+
+      const body = document.getElementById('inspect-body');
+      body.innerHTML = `
+        <div class="space-y-2">
+          <div class="bg-command-bg p-2 rounded-lg border border-command-border space-y-1">
+            <div class="flex justify-between text-[10px] font-mono">
+              <span class="text-command-textMuted">Carga Útil:</span>
+              <span class="text-emerald-400 font-bold">${Math.round(truck.loadKg)} / ${truck.capacityKg} kg (${Math.round(truck.loadKg/truck.capacityKg*100)}%)</span>
+            </div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div class="bg-emerald-500 h-full" style="width: ${(truck.loadKg/truck.capacityKg)*100}%"></div>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-1.5 font-mono text-[10px]">
+            <div class="bg-command-bg p-1.5 rounded border border-command-border">
+              <span class="text-command-textMuted block">Odômetro</span>
+              <span class="text-white">${truck.totalDistanceKm.toFixed(1)} km</span>
+            </div>
+            <div class="bg-command-bg p-1.5 rounded border border-command-border">
+              <span class="text-command-textMuted block">Lixo Coletado</span>
+              <span class="text-white">${Math.round(truck.totalCollectedKg)} kg</span>
+            </div>
+            <div class="bg-command-bg p-1.5 rounded border border-command-border">
+              <span class="text-command-textMuted block">Viagens Aterro</span>
+              <span class="text-white">${truck.disposalTrips} viagens</span>
+            </div>
+            <div class="bg-command-bg p-1.5 rounded border border-command-border">
+              <span class="text-command-textMuted block">Próximo Alvo</span>
+              <span class="text-white truncate">${truck.targetBinId || truck.targetNode}</span>
+            </div>
+          </div>
+          <button onclick="followTruck('${truck.id}')" class="w-full py-1.5 bg-sky-600 hover:bg-sky-500 text-slate-950 font-bold rounded-lg transition flex items-center justify-center gap-1.5">
+            <i data-lucide="crosshair" class="w-3.5 h-3.5"></i> Acompanhar Câmera no Caminhão
+          </button>
+        </div>
+      `;
+      lucide.createIcons();
+      playBeep(620, 'sine', 0.04);
+    }
+
+    function clearSelection() {
+      simState.selectedEntity = null;
+      document.getElementById('inspect-title').innerText = "Central de Operações";
+      document.getElementById('inspect-subtitle').innerText = "Visão Global do Distrito Federal";
+      document.getElementById('btn-close-inspect').classList.add('hidden');
+
+      const body = document.getElementById('inspect-body');
+      body.innerHTML = `
+        <div class="space-y-1.5 text-[11px] text-command-textSecondary">
+          <p>Clique em qualquer lixeira ou caminhão no mapa para inspecionar parâmetros IoT, telemetria e estado de carga.</p>
+          <div class="flex items-center justify-between text-[10px] font-mono pt-1 text-command-textMuted">
+            <span>Frota: 3 caminhões operacionais</span>
+            <span>Aterro: Operação Normal</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function manuallyEmptyBin(id) {
+      const b = SMART_BINS.find(x => x.id === id);
+      if (b) {
+        b.fillPct = 2;
+        inspectBin(b);
+        playCollectSound();
+        addTimelineEvent('MANUAL', `Lixeira ${id} esvaziada manualmente.`);
+      }
+    }
+
+    function manuallyFillBin(id) {
+      const b = SMART_BINS.find(x => x.id === id);
+      if (b) {
+        b.fillPct = 95;
+        inspectBin(b);
+        playAlertSound();
+        addTimelineEvent('MANUAL', `Lixeira ${id} configurada para 95% (Crítica).`);
+        TRUCKS.forEach(t => solveNextTargetForTruck(t));
+      }
+    }
+
+    /* ================= TIMELINE LOGGING ================= */
+    let timelineFilter = 'ALL';
+
+    function addTimelineEvent(category, message) {
+      const simTimeStr = formatClock(simState.simTimeSeconds);
+      const ev = { id: 'EVT-' + Math.floor(Math.random()*90000+10000), time: simTimeStr, cat: category, text: message };
+      simState.events.unshift(ev);
+      if (simState.events.length > 80) simState.events.pop();
+
+      simState.mqttCount++;
+      const counterEl = document.getElementById('stat-mqtt-counter');
+      if (counterEl) counterEl.innerHTML = `Broker: <strong>${simState.mqttCount}</strong> msgs`;
+
+      const explainer = document.getElementById('decision-footer-text');
+      if (explainer && (category === 'DISPATCH' || category === 'CRITICAL')) {
+        explainer.innerText = message;
+      }
+
+      renderTimelineUI();
+    }
+
+    function renderTimelineUI() {
+      const list = document.getElementById('timeline-event-list');
+      if (!list) return;
+
+      const filtered = simState.events.filter(e => {
+        if (timelineFilter === 'ALL') return true;
+        if (timelineFilter === 'ALERT' && e.cat === 'CRITICAL') return true;
+        if (timelineFilter === 'DISPATCH' && (e.cat === 'DISPATCH' || e.cat === 'DESP_ATERRO')) return true;
+        if (timelineFilter === 'COLLECT' && (e.cat === 'COLLECT' || e.cat === 'COLLECT_START')) return true;
+        if (timelineFilter === 'TELEMETRY' && e.cat.includes('MQTT')) return true;
+        return false;
+      });
+
+      list.innerHTML = filtered.map(e => `
+        <div class="flex items-center gap-2 border-b border-command-border/40 py-0.5">
+          <span class="text-command-textMuted shrink-0">[${e.time}]</span>
+          <span class="px-1.5 py-0.2 text-[9px] rounded font-bold shrink-0 ${e.cat === 'CRITICAL' ? 'bg-rose-950 text-rose-400 border border-rose-800' : (e.cat === 'DISPATCH' ? 'bg-sky-950 text-sky-400' : 'bg-command-border text-slate-300')}">${e.cat}</span>
+          <span class="text-slate-200 truncate">${e.text}</span>
+        </div>
+      `).join('');
+    }
+
+    function filterTimeline(filter) {
+      timelineFilter = filter;
+      document.querySelectorAll('.tl-filter-btn').forEach(b => {
+        if (b.dataset.filter === filter) {
+          b.className = 'tl-filter-btn px-2 py-0.5 rounded bg-command-border text-white font-bold';
+        } else {
+          b.className = 'tl-filter-btn px-2 py-0.5 rounded text-command-textMuted hover:text-white';
+        }
+      });
+      renderTimelineUI();
+    }
+
+    function toggleTimelineExpand() {
+      const tray = document.getElementById('bottom-timeline-tray');
+      const icon = document.getElementById('timeline-toggle-icon');
+      if (tray.classList.contains('h-28')) {
+        tray.classList.replace('h-28', 'h-64');
+        icon.setAttribute('data-lucide', 'chevron-up');
+      } else {
+        tray.classList.replace('h-64', 'h-28');
+        icon.setAttribute('data-lucide', 'chevron-down');
+      }
+      lucide.createIcons();
+    }
+
+    function toggleLeftDrawer() {
+      const drawer = document.getElementById('left-drawer');
+      const btn = document.getElementById('btn-expand-left');
+      if (drawer.classList.contains('hidden')) {
+        drawer.classList.remove('hidden');
+        btn.classList.add('hidden');
+      } else {
+        drawer.classList.add('hidden');
+        btn.classList.remove('hidden');
+      }
+      resizeCanvas();
+    }
+
+    /* ================= RIGHT TABS SWITCHING ================= */
+    function switchRightTab(tabId) {
+      document.querySelectorAll('.right-tab-btn').forEach(b => {
+        b.classList.remove('bg-command-surfaceElevated', 'text-emerald-400', 'shadow-sm');
+        b.classList.add('text-command-textMuted');
+      });
+      const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-command-surfaceElevated', 'text-emerald-400', 'shadow-sm');
+        activeBtn.classList.remove('text-command-textMuted');
+      }
+
+      ['overview', 'comparison', 'fleet'].forEach(t => {
+        const el = document.getElementById(`tab-content-${t}`);
+        if (el) el.classList.toggle('hidden', t !== tabId);
+      });
+
+      if (tabId === 'fleet') renderFleetTabUI();
+    }
+
+    function renderFleetTabUI() {
+      const truckCont = document.getElementById('trucks-list-container');
+      if (truckCont) {
+        truckCont.innerHTML = TRUCKS.map(t => `
+          <div onclick="inspectTruck(TRUCKS.find(x => x.id === '${t.id}'))" class="bg-command-bg p-2 rounded-lg border border-command-border hover:border-emerald-500/50 cursor-pointer transition">
+            <div class="flex items-center justify-between text-[11px] mb-1">
+              <span class="font-bold text-white flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${t.color}"></span>
+                ${t.id} - ${t.name}
+              </span>
+              <span class="text-[9px] font-mono uppercase text-command-textMuted">${t.state}</span>
+            </div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div class="h-full bg-emerald-500" style="width: ${(t.loadKg/t.capacityKg)*100}%"></div>
+            </div>
+            <div class="flex justify-between text-[9px] font-mono text-command-textMuted mt-1">
+              <span>Carga: ${Math.round(t.loadKg)}kg</span>
+              <span>${Math.round((t.loadKg/t.capacityKg)*100)}%</span>
+            </div>
+          </div>
+        `).join('');
+      }
+      renderBinsListUI();
+    }
+
+    function renderBinsListUI() {
+      const cont = document.getElementById('bins-list-container');
+      if (!cont) return;
+      const filter = document.getElementById('bins-filter-select')?.value || 'ALL';
+
+      const filtered = SMART_BINS.filter(b => {
+        if (filter === 'CRITICAL' && b.fillPct < 85) return false;
+        if (filter === 'HIGH' && (b.fillPct < 70 || b.fillPct >= 85)) return false;
+        return true;
+      });
+
+      cont.innerHTML = filtered.map(b => `
+        <div onclick="inspectBin(SMART_BINS.find(x => x.id === '${b.id}'))" class="bg-command-bg p-1.5 rounded border border-command-border hover:border-slate-700 flex items-center justify-between cursor-pointer text-[10px] transition">
+          <span class="font-mono text-slate-200">${b.id} <span class="text-command-textMuted font-sans">(${b.name})</span></span>
+          <span class="font-mono font-bold ${b.fillPct >= 85 ? 'text-rose-400' : 'text-slate-300'}">${Math.round(b.fillPct)}%</span>
+        </div>
+      `).join('');
+    }
+
+    function showLatestDecisionDetails() {
+      switchRightTab('overview');
+      const latest = simState.events.find(e => e.cat === 'DISPATCH' || e.cat === 'DESP_ATERRO');
+      if (latest) {
+        document.getElementById('inspect-title').innerText = "Explicabilidade da Decisão";
+        document.getElementById('inspect-subtitle').innerText = "Motor VRP Smart IoT • Algoritmo de Otimização";
+        document.getElementById('btn-close-inspect').classList.remove('hidden');
+        document.getElementById('inspect-body').innerHTML = `
+          <div class="space-y-2 text-xs">
+            <div class="bg-command-bg p-2.5 rounded-lg border border-command-border space-y-1">
+              <span class="text-[10px] uppercase font-mono text-sky-400 block font-bold">Por que esta rota foi atribuída?</span>
+              <p class="text-slate-200 leading-relaxed">${latest.text}</p>
+            </div>
+            <div class="text-[10px] font-mono text-command-textMuted bg-command-bg p-2 rounded border border-command-border">
+              Fatores: Distância Viária via Dijkstra + Janela de Transbordo Estimada + Capacidade Remanescente do Veículo.
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    /* ================= METRICS & CHARTS ================= */
+    function formatClock(seconds) {
+      const h = Math.floor((seconds / 3600) % 24).toString().padStart(2, '0');
+      const m = Math.floor((seconds / 60) % 60).toString().padStart(2, '0');
+      const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+      return `${h}:${m}:${s}`;
+    }
+
+    function updateMetricsDashboard() {
+      document.getElementById('sim-clock-display').innerText = formatClock(simState.simTimeSeconds);
+      document.getElementById('sim-day-display').innerText = `Dia ${simState.simDay} • DF`;
+
+      document.getElementById('kpi-cost-val').innerText = `R$ ${simState.smartTotalCost.toFixed(2)}`;
+      document.getElementById('kpi-distance-val').innerText = `${simState.totalDistanceKm.toFixed(1)} km`;
+      document.getElementById('kpi-distance-saved').innerText = `-${(simState.totalDistanceKm * 0.42).toFixed(1)} km poupados`;
+      document.getElementById('kpi-co2-val').innerText = `-${simState.co2SavedKg.toFixed(1)} kg`;
+      document.getElementById('kpi-diesel-val').innerText = `${simState.fuelSavedLiters.toFixed(1)} L poupados`;
+      document.getElementById('kpi-overflow-prevented').innerText = `${simState.overflowIncidentsPrevented} evitados`;
+      document.getElementById('kpi-overflow-active').innerText = `${simState.overflowIncidentsCurrent} ativos agora`;
+
+      // Comparison Table
+      const compDist = document.getElementById('comp-dist-smart');
+      if (compDist) compDist.innerText = `${simState.totalDistanceKm.toFixed(1)} km`;
+      const compCost = document.getElementById('comp-cost-smart');
+      if (compCost) compCost.innerText = `R$ ${simState.smartTotalCost.toFixed(2)}`;
+      const compFuel = document.getElementById('comp-fuel-smart');
+      if (compFuel) compFuel.innerText = `${(simState.totalDistanceKm * 0.35).toFixed(1)} L`;
+      const compCo2 = document.getElementById('comp-co2-smart');
+      if (compCo2) compCo2.innerText = `${(simState.totalDistanceKm * 0.35 * 2.68).toFixed(1)} kg`;
+    }
+
+    let wasteChart = null;
+    let raChart = null;
+
+    function initCharts() {
+      const ctxW = document.getElementById('wasteChart').getContext('2d');
+      wasteChart = new Chart(ctxW, {
+        type: 'line',
+        data: {
+          labels: ['08h', '09h', '10h', '11h', '12h', '13h', '14h'],
+          datasets: [{
+            label: 'Coleta Smart',
+            data: [750, 1600, 2400, 3100, 3900, 4500, 4850],
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.08)',
+            fill: true,
+            tension: 0.3,
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#64748b', font: { size: 9 } } },
+            y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#64748b', font: { size: 9 } } }
+          }
+        }
+      });
+
+      const ctxR = document.getElementById('raChart').getContext('2d');
+      raChart = new Chart(ctxR, {
+        type: 'bar',
+        data: {
+          labels: ['Plano', 'Tagua', 'Ceil', 'Águas', 'Samam', 'Guará'],
+          datasets: [{
+            data: [1950, 1280, 1450, 890, 640, 720],
+            backgroundColor: ['#10b981', '#06b6d4', '#f59e0b', '#a855f7', '#ec4899', '#64748b'],
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 9 } } },
+            y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#64748b', font: { size: 9 } } }
+          }
+        }
+      });
+    }
+
+    /* ================= WEBSOCKET REAL-TIME SYNC ================= */
+    let backendWs = null;
+    let isLaboratorioMode = false;
+
+    function connectBackendWebSocket() {
+      const host = window.location.hostname || 'localhost';
+      const wsUrl = `ws://${host}:8000/ws/scenarios/default`;
+
+      try {
+        backendWs = new WebSocket(wsUrl);
+        backendWs.onopen = () => {
+          isLaboratorioMode = true;
+          updateModeUI(true);
+          addTimelineEvent('WS_CONNECT', 'Conexão WebSocket estabelecida com o backend FastAPI.');
+        };
+        backendWs.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'FULL_SNAPSHOT' || msg.type === 'DELTA_UPDATE') {
+              const d = msg.data;
+              if (d.metrics) {
+                simState.smartTotalCost = d.metrics.cost_smart_brl || simState.smartTotalCost;
+                simState.baselineTotalCost = d.metrics.cost_baseline_brl || simState.baselineTotalCost;
+                simState.totalDistanceKm = d.metrics.distance_smart_km || simState.totalDistanceKm;
+              }
+            }
+          } catch(e) {}
+        };
+        backendWs.onclose = () => {
+          isLaboratorioMode = false;
+          updateModeUI(false);
+          setTimeout(connectBackendWebSocket, 5000);
+        };
+      } catch(e) {
+        isLaboratorioMode = false;
+        updateModeUI(false);
+      }
+    }
+
+    function updateModeUI(connected) {
+      const badge = document.getElementById('mode-badge');
+      const modeText = document.getElementById('mode-text');
+      const statusText = document.getElementById('backend-status-text');
+
+      if (connected) {
+        badge.className = 'cursor-pointer text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-emerald-950/70 border border-emerald-500/40 text-emerald-400 flex items-center gap-1.5 shadow-sm';
+        modeText.innerText = 'Modo Laboratório';
+        statusText.innerText = 'FastAPI :8000 • Broker MQTT & WebSocket Ativos';
+      } else {
+        badge.className = 'cursor-pointer text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-amber-950/70 border border-amber-500/40 text-amber-400 flex items-center gap-1.5 shadow-sm';
+        modeText.innerText = 'Modo Demo PWA';
+        statusText.innerText = 'Modo Local Offline • Zero Custo Obrigatório';
+      }
+    }
+
+    function toggleBackendSync() {
+      if (!isLaboratorioMode) connectBackendWebSocket();
+    }
+
+    /* ================= ONBOARDING MODAL ================= */
+    function openOnboardingModal() {
+      document.getElementById('onboarding-modal').classList.remove('hidden');
+    }
+    function closeOnboardingModal() {
+      document.getElementById('onboarding-modal').classList.add('hidden');
+    }
+
+    /* ================= KEYBOARD SHORTCUTS ================= */
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+      if (e.code === 'Space') { e.preventDefault(); togglePlayPause(); }
+      else if (e.key === '1') setSimSpeed(1);
+      else if (e.key === '2') setSimSpeed(5);
+      else if (e.key === '3') setSimSpeed(15);
+      else if (e.key === '4') setSimSpeed(30);
+      else if (e.key === '5') setSimSpeed(60);
+      else if (e.key === '6') setSimSpeed(360);
+      else if (e.key === 'r' || e.key === 'R') confirmReset();
+      else if (e.key === 'b' || e.key === 'B') toggleRoadBlock();
+      else if (e.key === 'c' || e.key === 'C') injectRandomOverflow();
+      else if (e.key === 'l' || e.key === 'L') toggleLeftDrawer();
+      else if (e.key === 't' || e.key === 'T') toggleTimelineExpand();
+      else if (e.key === 'h' || e.key === 'H') toggleHeatmap();
+      else if (e.key === '?') openOnboardingModal();
+      else if (e.key === 'Escape') {
+        closeOnboardingModal();
+        clearSelection();
+        cancelFollowTruck();
+      }
+    });
+
+    /* ================= EXPORT DATA ================= */
+    function exportSimulationData() {
+      const data = {
+        meta: { app: 'SmartWaste DF', version: '2.6', seed: currentSeed, simTime: formatClock(simState.simTimeSeconds), strategy: simState.strategy },
+        kpis: { costSmartBrl: simState.smartTotalCost, costBaselineBrl: simState.baselineTotalCost, distanceKm: simState.totalDistanceKm, co2AvoidedKg: simState.co2SavedKg, overflowsPrevented: simState.overflowIncidentsPrevented },
+        trucks: TRUCKS,
+        bins: SMART_BINS,
+        events: simState.events
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `smartwaste-df-mission-export-${currentSeed}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      confetti({ particleCount: 40, spread: 60, origin: { y: 0.9 } });
+    }
+
+    /* ================= INITIALIZATION ================= */
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      resizeCanvas();
+      initCharts();
+      clearSelection();
+      renderFleetTabUI();
+      addTimelineEvent('SYSTEM', 'Central de Operações inicializada. Cenário: Brasília — Dia Útil.');
+      requestAnimationFrame(animationLoop);
+      TRUCKS.forEach(t => solveNextTargetForTruck(t));
+      connectBackendWebSocket();
+    });
+  </script>
+</body>
+</html>
