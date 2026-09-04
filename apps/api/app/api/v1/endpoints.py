@@ -63,6 +63,12 @@ def change_weather(scenario_id: str, weather: WeatherType):
     engine.set_weather(weather)
     return {"status": "WEATHER_UPDATED", "weather": weather.value}
 
+@router.post("/api/v1/scenarios/{scenario_id}/reset", summary="Reiniciar Simulação")
+def reset_scenario(scenario_id: str):
+    global _engine
+    _engine = SimulationEngine()
+    return {"status": "RESET", "scenario_id": scenario_id}
+
 @router.post("/api/v1/roads/block", summary="Bloquear ou Desbloquear Via EPTG")
 def toggle_road_block(blocked: bool = Query(...)):
     engine = get_engine()
