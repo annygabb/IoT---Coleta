@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="820" viewBox="0 0 1600 820">
+  <rect width="1600" height="820" fill="#090d14"/>
+  <style>
+    .t{font-family:Arial,sans-serif;fill:#e5eef7}.m{font-family:monospace;fill:#94a3b8}.h{font-family:Arial,sans-serif;font-weight:700;fill:#f8fafc}.g{fill:#10b981}.b{fill:#0f1523;stroke:#26354a;stroke-width:2}.a{fill:#111c2d;stroke:#334155;stroke-width:2}.s{font-size:18px}.sm{font-size:14px}.xs{font-size:12px}
+  </style>
+  <rect x="20" y="18" width="1560" height="70" rx="14" class="b"/>
+  <text x="45" y="47" class="h s">SMARTWASTE DF</text><text x="45" y="70" class="m xs">Centro de comando / simulador</text>
+  <rect x="315" y="31" width="520" height="44" rx="10" class="a"/>
+  <text x="335" y="58" class="m sm">⏱ Relógio  ⏯ Play  +1m  1x 5x 15x 30x 60x 360x</text>
+  <rect x="850" y="31" width="185" height="44" rx="10" class="a"/><text x="870" y="58" class="m sm">🚚 Frota 1–10</text>
+  <rect x="1048" y="31" width="195" height="44" rx="10" class="a"/><text x="1068" y="58" class="m sm">⚡ Estratégia</text>
+  <rect x="1255" y="31" width="300" height="44" rx="10" class="a"/><text x="1275" y="58" class="m sm">Clima · Interdição · PDF</text>
+  <rect x="20" y="105" width="270" height="615" rx="14" class="b"/>
+  <text x="42" y="140" class="h s">1. Camadas &amp; Regiões</text>
+  <text x="42" y="178" class="t sm">✓ Lixeiras inteligentes</text><text x="42" y="208" class="t sm">✓ Frota SLU</text><text x="42" y="238" class="t sm">✓ Vetores de rota</text><text x="42" y="268" class="t sm">✓ Heatmap</text>
+  <line x1="42" y1="292" x2="266" y2="292" stroke="#26354a"/>
+  <text x="42" y="325" class="m xs">Regiões do DF</text><text x="42" y="355" class="t sm">Plano Piloto</text><text x="42" y="382" class="t sm">Taguatinga</text><text x="42" y="409" class="t sm">Ceilândia</text><text x="42" y="436" class="t sm">Águas Claras</text><text x="42" y="463" class="t sm">Samambaia</text><text x="42" y="490" class="t sm">Guará / Lago Sul</text>
+  <rect x="42" y="535" width="206" height="48" rx="10" fill="#3a1020" stroke="#9f2743"/><text x="62" y="565" class="t sm">+ Lixeira Crítica</text>
+  <rect x="42" y="595" width="206" height="48" rx="10" fill="#33200d" stroke="#8a4d16"/><text x="62" y="625" class="t sm">Interditar Via</text>
+  <rect x="308" y="105" width="845" height="615" rx="14" class="b"/>
+  <text x="335" y="140" class="h s">2. Mapa / Digital Twin</text>
+  <path d="M430 520 L570 430 L700 470 L830 350 L980 410" fill="none" stroke="#334155" stroke-width="5"/>
+  <path d="M440 570 L630 570 L770 500 L1010 550" fill="none" stroke="#1f6f63" stroke-width="4" stroke-dasharray="10 8"/>
+  <circle cx="430" cy="520" r="12" class="g"/><circle cx="570" cy="430" r="12" fill="#f59e0b"/><circle cx="700" cy="470" r="12" fill="#ef4444"/><circle cx="830" cy="350" r="12" class="g"/><circle cx="980" cy="410" r="12" fill="#10b981"/>
+  <rect x="610" y="555" width="38" height="25" rx="5" fill="#06b6d4"/><rect x="790" y="485" width="38" height="25" rx="5" fill="#a855f7"/>
+  <text x="355" y="675" class="m xs">Estratégia escolhe o alvo • Dijkstra escolhe o caminho • cores = ocupação</text>
+  <rect x="1170" y="105" width="410" height="615" rx="14" class="b"/>
+  <text x="1195" y="140" class="h s">3. Operação &amp; Analytics</text>
+  <rect x="1195" y="165" width="360" height="75" rx="10" class="a"/><text x="1215" y="195" class="h sm">Central de Operações</text><text x="1215" y="220" class="m xs">estado / seleção / última decisão</text>
+  <text x="1195" y="280" class="m xs">KPIs</text>
+  <rect x="1195" y="300" width="170" height="82" rx="10" class="a"/><text x="1215" y="330" class="t sm">Custo</text><text x="1215" y="358" class="h s">R$ ...</text>
+  <rect x="1385" y="300" width="170" height="82" rx="10" class="a"/><text x="1405" y="330" class="t sm">Distância</text><text x="1405" y="358" class="h s">... km</text>
+  <rect x="1195" y="400" width="360" height="120" rx="10" class="a"/><text x="1215" y="430" class="t sm">Frota &amp; Bins</text><text x="1215" y="458" class="m xs">carga · estado · alvo · ocupação</text>
+  <rect x="1195" y="540" width="360" height="120" rx="10" class="a"/><text x="1215" y="570" class="t sm">VRP vs Baseline</text><text x="1215" y="598" class="m xs">comparação didática / KPIs sintéticos</text>
+  <rect x="20" y="738" width="1560" height="62" rx="14" class="b"/>
+  <text x="42" y="772" class="h s">4. Timeline de Operações &amp; MQTT</text><text x="405" y="772" class="m sm">eventos · alertas · despacho · coleta · telemetria · exportação</text>
+</svg>

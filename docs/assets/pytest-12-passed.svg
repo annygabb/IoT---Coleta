@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="920" viewBox="0 0 1600 920">
+<rect width="1600" height="920" fill="#090d14"/><style>.m{font-family:monospace;fill:#cbd5e1;font-size:22px}.g{fill:#5ee6ad}.d{fill:#64748b}.h{font-family:monospace;fill:#f8fafc;font-weight:bold;font-size:28px}</style>
+<circle cx="35" cy="30" r="9" fill="#ff5f56"/><circle cx="65" cy="30" r="9" fill="#ffbd2e"/><circle cx="95" cy="30" r="9" fill="#27c93f"/>
+<text x="28" y="78" class="h">SmartWaste DF • Evidência automatizada de testes</text>
+<text x="28" y="116" class="m g">$ python -m pytest tests -v --tb=short</text>
+<text x="28" y="165" class="m d">collected 12 items</text>
+<text x="28" y="215" class="m g">✓ integration/test_iot_flow.py::test_complete_vertical_slice_m1 PASSED</text>
+<text x="28" y="255" class="m g">✓ unit/test_contracts.py::test_valid_sensor_telemetry_payload PASSED</text>
+<text x="28" y="295" class="m g">✓ unit/test_contracts.py::test_invalid_negative_fill_pct_rejected PASSED</text>
+<text x="28" y="335" class="m g">✓ unit/test_contracts.py::test_truck_command_idempotency_structure PASSED</text>
+<text x="28" y="375" class="m g">✓ unit/test_routing_strategies.py::fixed_route_is_cyclic PASSED</text>
+<text x="28" y="415" class="m g">✓ unit/test_routing_strategies.py::fixed_route_skips_reserved_bin PASSED</text>
+<text x="28" y="455" class="m g">✓ unit/test_routing_strategies.py::nearest_requires_20_percent PASSED</text>
+<text x="28" y="495" class="m g">✓ unit/test_routing_strategies.py::smart_vrp_requires_25_percent PASSED</text>
+<text x="28" y="535" class="m g">✓ unit/test_simulation_engine.py::deterministic_prng_reproducibility PASSED</text>
+<text x="28" y="575" class="m g">✓ unit/test_simulation_engine.py::simulation_clock_speed PASSED</text>
+<text x="28" y="615" class="m g">✓ unit/test_simulation_engine.py::smart_bin_state_transitions PASSED</text>
+<text x="28" y="655" class="m g">✓ unit/test_simulation_engine.py::dijkstra_reroutes_when_eptg_is_blocked PASSED</text>
+<line x1="28" y1="710" x2="1572" y2="710" stroke="#26354a" stroke-width="2"/>
+<text x="28" y="765" class="h g">12 passed</text>
+<text x="28" y="810" class="m d">Validação executada em 07/09/2026 sobre o código atualizado.</text>
+<text x="28" y="850" class="m d">A imagem resume o resultado; o comando acima é reproduzível localmente.</text>
+</svg>
