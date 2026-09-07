@@ -16,7 +16,7 @@ def health_check():
     return {
         "status": "HEALTHY",
         "service": "SmartWaste DF Modular Backend",
-        "version": "2.6",
+        "version": "2.7",
         "zero_cost": True
     }
 
@@ -27,7 +27,7 @@ def readiness_check():
         "status": "READY",
         "nodes_loaded": len(engine.bins),
         "trucks_active": len(engine.trucks),
-        "db": "CONNECTED_SQLITE_LOCAL",
+        "db": "SQLITE_LAYER_AVAILABLE_NOT_WIRED",
         "mqtt": "IN_MEMORY_BROKER_READY"
     }
 

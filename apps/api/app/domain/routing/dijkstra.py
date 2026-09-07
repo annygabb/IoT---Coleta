@@ -73,7 +73,7 @@ class DijkstraRouter:
 
         # Reconstrução da rota
         if distances[target_node] == float('inf'):
-            return [start_node], 0.0 # Sem rota viável devido a bloqueios
+            return [start_node], float('inf') # Sem rota viável devido a bloqueios
 
         path = []
         curr = target_node

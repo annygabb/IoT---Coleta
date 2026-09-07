@@ -24,8 +24,19 @@ class BaseRoutingStrategy(ABC):
 class FixedBaselineStrategy(BaseRoutingStrategy):
     """
     Estratégia Tradicional de Rota Fixa (Baseline SLU pré-IoT).
-    Visita todas as lixeiras em ordem estrita de itinerário sem considerar o nível do sensor.
+
+    Mantém um itinerário cíclico BIN-01 -> BIN-02 -> ... -> BIN-N e não usa
+    telemetria de ocupação para mudar a prioridade. O cursor é independente por
+    caminhão para evitar que cada novo despacho volte sempre ao primeiro ponto.
     """
+    def __init__(self):
+        self._last_selected_index_by_truck: Dict[str, int] = {}
+
+    @staticmethod
+    def _bin_order(bin_obj: SmartBin) -> int:
+        numeric_id = bin_obj.id.replace("BIN-", "")
+        return int(numeric_id) if numeric_id.isdigit() else 999999
+
     def select_next_bin(
         self,
         truck: CollectionTruck,
@@ -35,19 +46,35 @@ class FixedBaselineStrategy(BaseRoutingStrategy):
         is_peak_hour: bool = False
     ) -> Tuple[Optional[SmartBin], str]:
         if not available_bins:
-            return None, "Nenhuma lixeira elegível no roteiro."
+            return None, "Nenhuma lixeira disponível no itinerário fixo."
 
-        # Ordenação fixa por ID numérico sequencial
-        sorted_bins = sorted(
-            [b for b in available_bins if not any(t.id != truck.id and t.target_bin_id == b.id for t in other_trucks)],
-            key=lambda b: int(b.id.replace("BIN-", "")) if b.id.replace("BIN-", "").isdigit() else 999
-        )
+        ordered_bins = sorted(available_bins, key=self._bin_order)
+        targeted_ids = {
+            t.target_bin_id
+            for t in other_trucks
+            if t.id != truck.id and t.target_bin_id
+        }
 
-        if not sorted_bins:
-            return None, "Todas as lixeiras do itinerário já estão sob atendimento."
+        last_index = self._last_selected_index_by_truck.get(truck.id, -1)
+        total_bins = len(ordered_bins)
 
-        chosen = sorted_bins[0]
-        return chosen, f"Itinerário pré-definido sequencial atendendo {chosen.id} ({chosen.name}) independente de telemetria."
+        for offset in range(1, total_bins + 1):
+            candidate_index = (last_index + offset) % total_bins
+            candidate = ordered_bins[candidate_index]
+            if candidate.id in targeted_ids:
+                continue
+
+            _, dist_km = router.find_shortest_path(truck.current_node, candidate.node_id, is_peak_hour)
+            if dist_km == float('inf'):
+                continue
+
+            self._last_selected_index_by_truck[truck.id] = candidate_index
+            return candidate, (
+                f"Rota fixa cíclica: próximo ponto do itinerário é {candidate.id} ({candidate.name}). "
+                f"Ocupação atual {candidate.fill_pct:.1f}% é monitorada, mas não altera a ordem de prioridade."
+            )
+
+        return None, "Nenhum ponto do itinerário fixo está disponível e alcançável neste momento."
 
 class NearestPriorityStrategy(BaseRoutingStrategy):
     """
