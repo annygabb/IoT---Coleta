@@ -1,62 +1,145 @@
-# SmartWaste DF — Arquitetura de Software & Digital Twin IoT
+# SmartWaste DF — Arquitetura Atual
 
-## 1. Visão Geral do Sistema
+## 1. Visão geral
 
-O **SmartWaste DF** é um Digital Twin e plataforma de simulação de coleta inteligente de resíduos para o Distrito Federal. O sistema opera sob dois modos arquiteturais complementares:
+O SmartWaste DF é um laboratório de Digital Twin para coleta inteligente de resíduos. A implementação atual combina um backend Python/FastAPI e uma interface web em HTML/JavaScript/Canvas.
 
-1. **Modo Laboratório Completo (API + Broker + WebSocket)**:
-   * Backend Python FastAPI estruturado como Monólito Modular.
-   * Emissor/consumidor de telemetria IoT via tópicos MQTT padronizados (`smartwaste/df/...`).
-   * Motor de regras de criticidade com detector de transbordo.
-   * Algoritmo de roteamento VRP Smart Dinâmico, comparável com Baseline Rota Fixa e Heurística de Proximidade.
-   * Rastreabilidade total com identificadores únicos: `event_id`, `correlation_id` e `command_id` idempotente.
-   * Streaming de eventos e deltas via WebSocket para os clientes conectados.
+O projeto foi desenhado como **monólito modular**: um serviço FastAPI único orquestra módulos separados de domínio, roteamento, IoT, métricas e simulação.
 
-2. **Modo Demo PWA (Offline-First / Zero Custo)**:
-   * Execução 100% autônoma no navegador web.
-   * Motor de simulação desacoplado com relógio determinístico via Seed.
-   * Renderizador 2D de alta performance em Canvas a 60 FPS.
-   * Sem dependências de contas pagas, chaves de API externas ou SaaS.
+## 2. Componentes realmente ativos
 
----
+```mermaid
+flowchart TB
+    UI[HTML + JavaScript + Canvas] <-->|REST / WebSocket| API[FastAPI]
+    API --> ENG[SimulationEngine]
+    ENG --> CLK[SimulationClock]
+    ENG --> BIN[SmartBin]
+    ENG --> TRK[CollectionTruck]
+    ENG --> STR[Routing Strategies]
+    STR --> DIJ[DijkstraRouter]
+    ENG --> MQ[VirtualMQTTBroker]
+    ENG --> MET[EconomicEnvironmentalMetrics]
+    ENG --> EXP[DecisionExplainer]
+    API -. camada disponível .-> DB[SQLite Repository]
+```
 
-## 2. Fluxo Canônico de Informação (Ponta a Ponta)
+### Backend
+
+- `FastAPI`: REST, WebSocket e entrega da interface integrada.
+- `SimulationEngine`: ciclo central de simulação.
+- `SimulationClock`: relógio acelerável.
+- `DeterministicPRNG`: aleatoriedade reproduzível por seed.
+- `SmartBin`: estado das lixeiras.
+- `CollectionTruck`: movimento, coleta, carga e descarte.
+- `DijkstraRouter`: menor caminho na malha simplificada.
+- `FixedBaselineStrategy`, `NearestPriorityStrategy`, `SmartVRPStrategy`: seleção do próximo alvo.
+- `VirtualMQTTBroker`: publish/subscribe e idempotência em memória.
+- `DecisionExplainer`: justificativas de despacho.
+- `EconomicEnvironmentalMetrics`: KPIs sintéticos.
+
+### Frontend
+
+- `index.html`: estrutura e maior parte da simulação visual.
+- JavaScript: estado, eventos, Canvas, gráficos, PDF e interação.
+- `apps/web/routing-docs-enhancements.js`: alinhamento das regras de roteamento da UI com o backend e extensão da documentação do PDF.
+
+## 3. Fluxo ponta a ponta
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Sensor as Sensor Virtual HC-SR04
-    participant Gateway as Gateway IoT Virtual
-    participant Broker as Eclipse Mosquitto / EventBus
-    participant Backend as Ingestão & Backend FastAPI
-    participant Decision as Decision Engine (VRP Smart)
-    participant Actuator as Atuador do Caminhão SLU
-    participant DB as Repositório / Banco de Dados
-    participant UI as Interface Web / WebSocket
+    participant Bin as SmartBin / Sensor virtual
+    participant Engine as SimulationEngine
+    participant MQTT as VirtualMQTTBroker
+    participant Decision as Estratégia de rota
+    participant Router as Dijkstra
+    participant Truck as CollectionTruck
+    participant API as FastAPI/WebSocket
+    participant UI as Dashboard
 
-    Sensor->>Gateway: Leitura Bruta (Nível, Temp, Bateria)
-    Gateway->>Broker: Publicação MQTT (smartwaste/df/bins/{id}/telemetry)
-    Broker->>Backend: Consumo & Validação de Schema Pydantic
-    Backend->>DB: Persistência da Telemetria (event_id, timestamp)
-    Backend->>Decision: Avaliação de Threshold (>85% Crítico)
-    Decision->>Decision: Seleção de Caminhão com Capacidade
-    Decision->>DB: Registro de Justificativa (decision_log)
-    Decision->>Broker: Comando Idempotente (smartwaste/df/trucks/{id}/commands)
-    Broker->>Actuator: Recepção do Comando (ASSIGN_ROUTE / COLLECT_BIN)
-    Actuator->>Actuator: Deslocamento no Grafo Viário do DF
-    Actuator->>Actuator: Execução da Coleta & Atualização de Carga
-    Actuator->>Broker: Publicação de ACK (smartwaste/df/trucks/{id}/acks)
-    Broker->>Backend: Atualização do Estado do Caminhão e da Lixeira
-    Backend->>UI: Streaming de Delta via WebSocket
+    Engine->>Bin: Atualiza geração e sensor
+    Engine->>MQTT: Publica telemetria eventual
+    Engine->>Decision: Solicita próximo alvo
+    Decision->>Router: Consulta distância/caminho
+    Decision-->>Engine: BIN escolhido + justificativa
+    Engine->>MQTT: Publica comando idempotente
+    Engine->>Truck: Atribui caminho
+    Truck->>Truck: Desloca / coleta / descarrega
+    Engine->>MQTT: Publica ACK
+    Engine->>API: Estado serializável
+    API->>UI: FULL_SNAPSHOT / DELTA_UPDATE
 ```
 
----
+## 4. MQTT: implementação atual
 
-## 3. Topologia Geográfica de Brasília
+O broker atual é **virtual e em memória**. Ele não depende de Eclipse Mosquitto.
 
-A malha urbana modela os eixos fundamentais do Distrito Federal:
-* **Plano Piloto**: Eixo Monumental (Torre de TV, Rodoviária, Esplanada, Congresso), Eixo Rodoviário Norte e Sul (Eixões), W3 e L2.
-* **Cidades Satélites**: Taguatinga (Centro, Norte, Sul), Ceilândia (P-Norte, Centro, Guariroba), Samambaia Norte/Sul, Águas Claras, Guará I e II, Sudoeste.
-* **Rodovias de Integração**: EPTG (DF-085), Via Estrutural (DF-095), EPNB (DF-075) e DF-001 (Pistão).
-* **Ponto de Descarte Central**: Aterro Sanitário de Brasília (Samambaia / DF-459).
-* **Garagem Operacional**: Garagem Central do SLU no Setor de Indústria e Abastecimento (SIA).
+Funcionalidades simuladas:
+
+- tópicos;
+- publish/subscribe;
+- histórico;
+- retain;
+- QoS registrado;
+- idempotência de comandos por `command_id`.
+
+Uma evolução futura pode substituir essa classe por Mosquitto/EMQX mantendo contratos semelhantes.
+
+## 5. Persistência
+
+Existe uma camada de repositório SQLite, porém o fluxo principal do `SimulationEngine` ainda opera em memória.
+
+Portanto:
+
+- não afirmar que toda telemetria é persistida hoje;
+- não afirmar que a simulação sobrevive a reinício;
+- considerar SQLite uma camada disponível para próxima integração.
+
+## 6. Roteamento
+
+A arquitetura separa:
+
+- **seleção do alvo**: estratégias;
+- **seleção do caminho**: Dijkstra.
+
+Isso permite comparar políticas sem reescrever o algoritmo de grafo.
+
+## 7. Modo de execução
+
+### Laboratório integrado
+
+```text
+python run_lab.py
+        ↓
+uvicorn / FastAPI :8000
+        ↓
+index.html + módulo de enhancements
+        ↓
+REST + WebSocket
+```
+
+### Simulador visual
+
+A interface mantém lógica local para fins de demonstração. Algumas capacidades visuais, como frota de 1–10 caminhões, ainda não estão parametrizadas no backend.
+
+## 8. Limitações arquiteturais
+
+- frontend grande e concentrado em `index.html`;
+- lógica duplicada entre navegador e backend;
+- broker não é MQTT de rede;
+- DB não está ligado ao fluxo principal;
+- malha geográfica simplificada;
+- baseline analítico por multiplicadores;
+- dependências web carregadas por CDN;
+- ausência de autenticação e RBAC.
+
+## 9. Evolução sugerida
+
+- modularização/TypeScript no frontend;
+- backend como fonte única de verdade;
+- SQLite/Postgres conectado ao motor;
+- Mosquitto/EMQX real;
+- OR-Tools para CVRP/VRPTW;
+- testes E2E;
+- dados geográficos e de trânsito reais;
+- observabilidade e autenticação.
