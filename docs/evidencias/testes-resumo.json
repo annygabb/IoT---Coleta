@@ -1,0 +1,43 @@
+{
+  "data": "2026-10-19",
+  "escopo": "pacote da evolução distribuída; não a versão base do código público",
+  "dados_sinteticos": true,
+  "testes": {
+    "python": 30,
+    "interface_javascript": 11,
+    "funcao_nuvem": 6
+  },
+  "integracao_local": {
+    "mqtt_real": true,
+    "emulador_nuvem": true,
+    "reconexao": true,
+    "canario_saudavel": true,
+    "rollback": true,
+    "ack_e_amostra_apos_10s": true,
+    "pdf": true
+  },
+  "integracao_remota_anterior": {
+    "success": true,
+    "duration_seconds": 42.14,
+    "recovery": {
+      "received": 160,
+      "synced": 128,
+      "pending_cloud": 32
+    },
+    "latencias_ms": [
+      7631.72,
+      7818.73,
+      6909.72,
+      7113.35
+    ],
+    "browser_verified": false
+  },
+  "teste_api_remota": {
+    "health": 200,
+    "unauthorized": 401,
+    "first_ingest": 200,
+    "repeat_ingest": 200,
+    "matching_rows": 1,
+    "invalid_date": 400
+  }
+}

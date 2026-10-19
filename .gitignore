@@ -21,3 +21,12 @@ ENV/
 # OS specific
 .DS_Store
 Thumbs.db
+
+# Configuração privada e estado local da evolução
+SmartWaste_Conexao_Privada.json
+SmartWaste_Completo_Privado.zip
+.venv312/
+data/distributed/
+*.db-wal
+*.db-shm
+
