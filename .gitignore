@@ -30,3 +30,18 @@ data/distributed/
 *.db-wal
 *.db-shm
 
+
+# Execução local e credenciais
+.venv312/
+data/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.log
+SmartWaste_Conexao_Privada.json
+cloud-config.json
+.env
+__pycache__/
+.pytest_cache/
+*.pyc

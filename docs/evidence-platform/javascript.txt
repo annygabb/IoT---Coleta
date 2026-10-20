@@ -1,0 +1,36 @@
+✔ identidade vem da autenticação (1.965705ms)
+✔ faixas e valores não finitos (0.545535ms)
+✔ estados operacionais separados da saúde (0.151409ms)
+✔ lotes vazios, longos e duplicados (0.278591ms)
+✔ transbordo permitido e campos extras omitidos (0.690134ms)
+✔ data impossível é rejeitada (0.286674ms)
+✔ lote misto não bloqueia registros válidos (1.81123ms)
+✔ contrato canônico aceita sensor rural e normaliza UTC (1.028426ms)
+✔ contrato canônico rejeita erros de tipo, versão, data e duplicação de grandeza (0.405974ms)
+✔ canônico mantém válidos e rejeita somente a mensagem ruim (0.451073ms)
+✔ consulta histórica usa medição com filtros e limite (0.474619ms)
+✔ UTC fora dos anos 1 a 9999 é recusado por mensagem (0.281476ms)
+✔ credencial inválida não consulta banco (4.46078ms)
+✔ handler grava válidos e informa inválidos separadamente (8.813386ms)
+✔ falha de armazenamento não emite confirmação (2.220269ms)
+✔ handler canônico grava sensor rural com identidade da fog autenticada (2.422065ms)
+✔ handler legado não confirma ID cujo conteúdo persistido é diferente (1.921938ms)
+✔ desconexão mostra fila e continuidade local (1.000424ms)
+✔ reconexão não é confirmada por um envio antigo (0.13227ms)
+✔ apenas confirmação nova libera estado conectado (0.175566ms)
+✔ erro não aparece como conectado (0.186202ms)
+✔ instalação aguarda ACK e snapshot novo (0.262837ms)
+✔ ACK rejeitado mostra erro (0.161885ms)
+✔ observação mostra versão e carregamento (0.197829ms)
+✔ aprovação mantém versão por sensor (7.968608ms)
+✔ rollback mostra versão efetiva anterior (0.272362ms)
+✔ campanha concluída antes da próxima consulta não trava carregamento (0.283969ms)
+✔ general commands resolve only by matching ACK and explain delays (0.265672ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 107.363575

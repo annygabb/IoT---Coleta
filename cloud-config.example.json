@@ -1,0 +1,5 @@
+{
+  "cloud_url": "https://SEU-PROJETO.supabase.co/functions/v1/smartwaste-api",
+  "fog_id": "sua-fog",
+  "fog_token": "SUBSTITUA_PELA_CREDENCIAL_PRIVADA_DA_SUA_FOG"
+}

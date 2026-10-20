@@ -1,0 +1,203 @@
+{
+  "domains": [
+    {
+      "id": "residuos",
+      "name": "Resíduos"
+    }
+  ],
+  "profiles": [
+    {
+      "id": "lixeira",
+      "domain": "residuos",
+      "interval_seconds": 5,
+      "measures": [
+        {
+          "name": "nivel_enchimento",
+          "unit": "%",
+          "min": 0,
+          "max": 120
+        },
+        {
+          "name": "temperatura",
+          "unit": "Cel",
+          "min": -50,
+          "max": 150
+        },
+        {
+          "name": "bateria",
+          "unit": "%",
+          "min": 0,
+          "max": 100
+        }
+      ]
+    }
+  ],
+  "sites": [
+    {
+      "id": "brasilia",
+      "name": "Brasília DF"
+    }
+  ],
+  "devices": [
+    {
+      "id": "sensor-BIN-01",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-02",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-03",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-04",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-05",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-06",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-07",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-08",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-09",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-10",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-11",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-12",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-13",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-14",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-15",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-16",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-17",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-18",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-19",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-20",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-21",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-22",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-23",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-24",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-25",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-26",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-27",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-28",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-29",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-30",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-31",
+      "profile": "lixeira",
+      "site": "brasilia"
+    },
+    {
+      "id": "sensor-BIN-32",
+      "profile": "lixeira",
+      "site": "brasilia"
+    }
+  ]
+}

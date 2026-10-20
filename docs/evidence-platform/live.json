@@ -1,0 +1,16 @@
+{
+  "bins": 32,
+  "trucks": 3,
+  "mqtt_connected": true,
+  "legacy_synced": 64,
+  "rural_messages": 2,
+  "mqtt_application_ack": true,
+  "canonical_pending": 0,
+  "canonical_cloud_status": "CONNECTED",
+  "cloud_target": "local-emulator",
+  "http_clients_verified": [
+    "python3",
+    "node",
+    "java"
+  ]
+}

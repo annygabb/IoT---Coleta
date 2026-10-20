@@ -1,3 +1,5 @@
+> Registro da versão anterior, de 19/10/2026. Para a implementação publicada em 20/10, consulte [ATUALIZACAO_PLATAFORMA_IOT.md](ATUALIZACAO_PLATAFORMA_IOT.md). O código distribuído agora está no repositório.
+
 # SmartWaste DF: evolução para edge, fog e nuvem
 
 **Engenharia de Software — Anny, Arthur e Eduardo**

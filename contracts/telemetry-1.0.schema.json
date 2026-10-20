@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:smartwaste:telemetry:1.0",
+  "$defs": {
+    "Location": {
+      "additionalProperties": false,
+      "properties": {
+        "site": {
+          "pattern": "^[A-Za-z0-9_-]{1,100}$",
+          "title": "Site",
+          "type": "string"
+        },
+        "area": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9_-]{1,100}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Area"
+        }
+      },
+      "required": [
+        "site"
+      ],
+      "title": "Location",
+      "type": "object"
+    },
+    "Measure": {
+      "additionalProperties": false,
+      "properties": {
+        "grandeza": {
+          "pattern": "^[A-Za-z0-9_-]{1,100}$",
+          "title": "Grandeza",
+          "type": "string"
+        },
+        "valor": {
+          "title": "Valor",
+          "type": "number"
+        },
+        "unidade": {
+          "pattern": "^[!-~]{1,32}$",
+          "title": "Unidade",
+          "type": "string"
+        }
+      },
+      "required": [
+        "grandeza",
+        "valor",
+        "unidade"
+      ],
+      "title": "Measure",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "versao": {
+      "const": "1.0",
+      "title": "Versao",
+      "type": "string"
+    },
+    "id_mensagem": {
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Id Mensagem",
+      "type": "string"
+    },
+    "dispositivo": {
+      "pattern": "^[A-Za-z0-9_-]{1,100}$",
+      "title": "Dispositivo",
+      "type": "string"
+    },
+    "tipo": {
+      "const": "telemetria",
+      "title": "Tipo",
+      "type": "string"
+    },
+    "timestamp": {
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?(?:Z|[+-]\\d{2}:\\d{2})$",
+      "title": "Timestamp",
+      "type": "string"
+    },
+    "via": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9_-]{1,100}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Via"
+    },
+    "local": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Location"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "medidas": {
+      "items": {
+        "$ref": "#/$defs/Measure"
+      },
+      "maxItems": 32,
+      "minItems": 1,
+      "title": "Medidas",
+      "type": "array"
+    }
+  },
+  "required": [
+    "versao",
+    "id_mensagem",
+    "dispositivo",
+    "tipo",
+    "timestamp",
+    "medidas"
+  ],
+  "title": "Telemetry",
+  "type": "object"
+}

@@ -1,0 +1,100 @@
+{
+  "asyncapi": "3.0.0",
+  "info": {
+    "title": "SmartWaste integração local",
+    "version": "1.0.0"
+  },
+  "defaultContentType": "application/json",
+  "servers": {
+    "local": {
+      "host": "127.0.0.1:1883",
+      "protocol": "mqtt",
+      "protocolVersion": "3.1.1"
+    }
+  },
+  "channels": {
+    "telemetry": {
+      "address": "smartwaste/{site}/{domain}/{device}/telemetria",
+      "parameters": {
+        "site": {
+          "description": "Local cadastrado"
+        },
+        "domain": {
+          "description": "Domínio do perfil"
+        },
+        "device": {
+          "description": "Dispositivo cadastrado"
+        }
+      },
+      "messages": {
+        "reading": {
+          "name": "Telemetry",
+          "payload": {
+            "$ref": "./telemetry-1.0.schema.json"
+          }
+        }
+      }
+    },
+    "ack": {
+      "address": "smartwaste/{site}/{domain}/{device}/ack",
+      "parameters": {
+        "site": {
+          "description": "site"
+        },
+        "domain": {
+          "description": "domain"
+        },
+        "device": {
+          "description": "device"
+        }
+      },
+      "messages": {
+        "result": {
+          "name": "IngestionResult",
+          "payload": {
+            "type": "object",
+            "required": [
+              "accepted",
+              "duplicates",
+              "rejected"
+            ],
+            "properties": {
+              "accepted": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "duplicates": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "rejected": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "operations": {
+    "receiveTelemetry": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/telemetry"
+      }
+    },
+    "sendApplicationAck": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/ack"
+      }
+    }
+  }
+}

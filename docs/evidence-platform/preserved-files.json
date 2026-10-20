@@ -1,0 +1,77 @@
+[
+  {
+    "file": "apps/distributed/dashboard.html",
+    "sha256": "a30ff71d97fbf514e90b8f7bd617a010399a1cbd69f1f70bc02fe0da03409902",
+    "unchanged": true
+  },
+  {
+    "file": "apps/distributed/ui-state.js",
+    "sha256": "a45b7ad189688f3dbe7c485b34bd2aaab781b88d9501c3d9407441fb2893e633",
+    "unchanged": true
+  },
+  {
+    "file": "index.html",
+    "sha256": "aef47afe79ce1e280a32d975d961c7b4a35f8b9661befbd555c832a33099a3bb",
+    "unchanged": true
+  },
+  {
+    "file": "apps/api/app/domain/routing/dijkstra.py",
+    "sha256": "39f9308ce74d6f9e4dbb4625d3f679b8a1d4ed7c9143d0b47a26b8dfdb5c101f",
+    "unchanged": true
+  },
+  {
+    "file": "apps/api/app/domain/routing/strategies.py",
+    "sha256": "5e732c79585f06808a9ce426b254d4f0ba9be9b89e65fafa16c12276a02a86c9",
+    "unchanged": true
+  },
+  {
+    "file": "apps/api/app/domain/decisions/explainer.py",
+    "sha256": "48c8373392f4ece268413c146a92d0bb2dd101257c6fbdfa5aac2dab4c381cde",
+    "unchanged": true
+  },
+  {
+    "file": "apps/api/app/domain/fleet/truck.py",
+    "sha256": "01760a6f8c37c56b0259691deefc9ccc09dfe6bec26bc87ac1d3ac2c7ef738d8",
+    "unchanged": true
+  },
+  {
+    "file": "apps/api/app/domain/analytics/metrics.py",
+    "sha256": "c6233151f3c5fc03830d845800b60615a795f30abc89ef980ab5c3c87d226f5b",
+    "unchanged": true
+  },
+  {
+    "file": "apps/api/app/domain/geo/brasilia_network.py",
+    "sha256": "015654bd5cdb685f81c1419f0ecf04eb2bddafa959db97ea904e482214a2088c",
+    "unchanged": true
+  },
+  {
+    "file": "apps/api/app/domain/iot/contracts.py",
+    "sha256": "30cfb1674220aa18c241f5b8baaac440503c69c1db1aabe42f2ed6aeb438a24b",
+    "unchanged": true
+  },
+  {
+    "file": "apps/api/app/domain/iot/broker.py",
+    "sha256": "480e94389ef2f58a47e6c2d59a4c1b01561bada0e9a6e9edfb7693c115064701",
+    "unchanged": true
+  },
+  {
+    "file": "apps/api/app/domain/waste/bin.py",
+    "sha256": "ba49db95105086aee8b9d9e1c0c99ca93e3d326113d866f80cf60db834c1ab49",
+    "unchanged": true
+  },
+  {
+    "file": "apps/api/app/domain/simulation/prng.py",
+    "sha256": "f19b00bc2864991569cf417243959ed54af4422c14bd56c0b686893db51ed335",
+    "unchanged": true
+  },
+  {
+    "file": "apps/api/app/domain/simulation/clock.py",
+    "sha256": "078494d96e9fb60e26d542cbc2d89f9febd6035db354124d807789aab4009650",
+    "unchanged": true
+  },
+  {
+    "file": "apps/api/app/domain/simulation/engine.py",
+    "sha256": "4147e072338185cc5e3ed0eba782f11b134bd5e1f431721a87b26d9fb0830035",
+    "unchanged": true
+  }
+]

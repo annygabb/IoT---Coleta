@@ -1,0 +1,4 @@
+project_id = "smartwaste-df"
+[functions.smartwaste-api]
+verify_jwt = false
+# A função valida x-fog-token antes de acessar ingest/history.
