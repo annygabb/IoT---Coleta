@@ -48,10 +48,12 @@ O motor de coleta, as estratégias e o painel foram preservados. Um sensor exter
 
 | Material | Conteúdo |
 |---|---|
+| [Apresentação resumida — 6 slides](docs/entrega/SmartWaste_Apresentacao_Resumida_6_Slides.pptx) | Termos técnicos explicados em cada slide; arquitetura, internet, dados, ganhos e limites |
+| [Roteiro da apresentação resumida](docs/entrega/ROTEIRO_APRESENTACAO_6_SLIDES.md) | Sugestão de fala e cuidados ao explicar os resultados |
 | [Guia da atualização](docs/ATUALIZACAO_PLATAFORMA_IOT.md) | Antes/depois, lógica, catálogo e teste passo a passo |
 | [Estado da implementação](docs/IMPLEMENTATION_STATUS.md) | O que está pronto e o que permanece pendente |
-| [Apresentação PowerPoint](docs/entrega/SmartWaste_Apresentacao_Atualizada.pptx) | Slides editáveis com as novas melhorias |
-| [Apresentação PDF](docs/entrega/SmartWaste_Apresentacao_Atualizada.pdf) | Versão para apresentar ou consultar |
+| [Apresentação PowerPoint](docs/entrega/SmartWaste_Apresentacao_Atualizada.pptx) | Versão completa anterior, com 14 slides |
+| [Apresentação PDF](docs/entrega/SmartWaste_Apresentacao_Atualizada.pdf) | PDF da versão completa anterior, com 14 slides |
 | [Guia distribuído](README_DISTRIBUIDO.md) | Execução, protocolos e limitações |
 | [Contratos](contracts/) | JSON Schema e AsyncAPI |
 | [Evidências atuais](docs/evidence-platform/) | Saídas dos testes e ensaio integrado |
